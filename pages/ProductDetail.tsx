@@ -9,11 +9,10 @@ import {
   Share2, 
   Printer, 
   Check,
-  Box,
   FileText,
   Settings,
   ZoomIn,   
-  Rotate3D   
+  Rotate3D,
 } from 'lucide-react';
 import { PRODUCTS as STATIC_PRODUCTS } from '../constants';
 
@@ -33,8 +32,7 @@ const ProductDetail: React.FC = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [activeImageOverride, setActiveImageOverride] = useState<string | null>(null);
 
-  // --- MAGNIFYING GLASS STATE (BILORY EFFECT) ---
-  // We store width/height here to ensure the lens works immediately without ref errors
+  // --- MAGNIFYING GLASS STATE ---
   const [magnifierState, setMagnifierState] = useState({
     show: false,
     x: 0,
@@ -43,9 +41,8 @@ const ProductDetail: React.FC = () => {
     height: 0
   });
 
-  // Configuration for the "Glass"
-  const MAGNIFIER_SIZE = 200; // Size of the circular glass in px
-  const ZOOM_LEVEL = 2.5;     // How much to magnify
+  const MAGNIFIER_SIZE = 200; 
+  const ZOOM_LEVEL = 2.5;    
 
   // Inject Fonts
   useEffect(() => {
@@ -91,8 +88,13 @@ const ProductDetail: React.FC = () => {
         const fullProduct = { ...productData, variants: vData || [] };
         setProduct(fullProduct);
         
+        // Auto-select first diameter if available
         if (vData && vData.length > 0) {
-            setSelectedDia(vData[0].diameter);
+            // Hum yaha pehle unique diameters nikal kar sort kar lete hain
+            const dias = Array.from(new Set(vData.map((v: any) => v.diameter).filter(Boolean))).sort();
+            if (dias.length > 0) {
+                setSelectedDia(dias[0] as string);
+            }
         }
       } catch (err: any) {
         console.error("Error loading product:", err);
@@ -110,6 +112,7 @@ const ProductDetail: React.FC = () => {
       return Array.from(dias).sort(); 
   }, [product]);
 
+  // Smart Filtering: Lengths tabhi dikhengi jo selected Diameter mein available hain
   const availableLengths = useMemo(() => {
       if (!product?.variants || !selectedDia) return [];
       const lengths = new Set(
@@ -118,6 +121,7 @@ const ProductDetail: React.FC = () => {
       return Array.from(lengths).sort(); 
   }, [product, selectedDia]);
 
+  // Auto-select length or reset if current selection is invalid
   useEffect(() => {
       if (availableLengths.length > 0 && !availableLengths.includes(selectedLen)) {
           setSelectedLen(availableLengths[0]);
@@ -147,28 +151,21 @@ const ProductDetail: React.FC = () => {
     return images;
   }, [product, activeImageOverride]);
 
-  // --- MAGNIFIER EVENT HANDLERS ---
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (window.innerWidth < 1024) return; 
+
     const { top, left, width, height } = e.currentTarget.getBoundingClientRect();
-    
-    // Calculate cursor position relative to the image container
     const x = e.clientX - left;
     const y = e.clientY - top;
+    
+    if (x < 0 || y < 0 || x > width || y > height) {
+       setMagnifierState((prev) => ({ ...prev, show: false }));
+       return;
+    }
 
-    setMagnifierState({
-      show: true,
-      x,
-      y,
-      width,
-      height
-    });
+    setMagnifierState({ show: true, x, y, width, height });
   };
 
-  const handleMouseLeave = () => {
-    setMagnifierState((prev) => ({ ...prev, show: false }));
-  };
-
-  // Styles
   const fontHeading = { fontFamily: '"Rajdhani", sans-serif' };
   const fontBody = { fontFamily: '"Inter", sans-serif' };
 
@@ -185,8 +182,10 @@ const ProductDetail: React.FC = () => {
     </div>
   );
 
-  const features = product.features || ["High-grade steel construction", "Precision engineered threads", "Corrosion resistant coating"];
-  const applications = product.applications || ["General Construction", "Furniture Hardware"];
+  const applicationsList = product.applications 
+    ? product.applications.map((app: any) => typeof app === 'string' ? app : app.name) 
+    : [];
+    
   const currentImage = displayImages[selectedImageIndex];
 
   return (
@@ -220,9 +219,8 @@ const ProductDetail: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
           
-          {/* LEFT: GALLERY WITH MAGNIFYING GLASS */}
+          {/* LEFT: GALLERY */}
           <div className="lg:col-span-5">
-              
               <div className="flex gap-4 h-[500px]">
                 {/* Thumbnails */}
                 <div className="flex flex-col gap-3 w-16 overflow-y-auto no-scrollbar py-1">
@@ -246,7 +244,7 @@ const ProductDetail: React.FC = () => {
                 <div 
                   className="flex-1 relative bg-white rounded-xl shadow-2xl border border-zinc-800 cursor-crosshair overflow-hidden"
                   onMouseMove={handleMouseMove}
-                  onMouseLeave={handleMouseLeave}
+                  onMouseLeave={handleMouseMove}
                 >
                     {/* Badge */}
                     <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-widest pointer-events-none" style={fontHeading}>
@@ -262,42 +260,33 @@ const ProductDetail: React.FC = () => {
                         />
                     </div>
 
-                    {/* --- THE MAGNIFYING GLASS (BILORY) --- */}
-                    {magnifierState.show && (
+                    {/* --- THE MAGNIFYING GLASS --- */}
+                    {magnifierState.show && window.innerWidth >= 1024 && (
                       <div 
+                        className="hidden lg:block"
                         style={{
                           position: 'absolute',
-                          // Center the glass on the cursor
                           left: `${magnifierState.x - MAGNIFIER_SIZE / 2}px`,
                           top: `${magnifierState.y - MAGNIFIER_SIZE / 2}px`,
                           width: `${MAGNIFIER_SIZE}px`,
                           height: `${MAGNIFIER_SIZE}px`,
-                          
-                          // Circular Glass look
                           borderRadius: '50%', 
-                          border: '2px solid #eab308', // Yellow border
+                          border: '2px solid #eab308', 
                           boxShadow: '0 5px 15px rgba(0,0,0,0.3), inset 0 0 20px rgba(255,255,255,0.5)', 
                           backgroundColor: 'white',
-                          
-                          // The Zoomed Image Logic
-                          backgroundImage: `url("${currentImage}")`, // Added quotes for safety
+                          backgroundImage: `url("${currentImage}")`, 
                           backgroundRepeat: 'no-repeat',
-                          
-                          // Zoom the background size relative to the CONTAINER size (not the image natural size)
                           backgroundSize: `${magnifierState.width * ZOOM_LEVEL}px ${magnifierState.height * ZOOM_LEVEL}px`,
-                          
-                          // Move the background opposite to mouse movement to create "lens" effect
                           backgroundPositionX: `${-magnifierState.x * ZOOM_LEVEL + MAGNIFIER_SIZE / 2}px`,
                           backgroundPositionY: `${-magnifierState.y * ZOOM_LEVEL + MAGNIFIER_SIZE / 2}px`,
-                          
-                          pointerEvents: 'none', // Allow clicks to pass through
+                          pointerEvents: 'none',
                           zIndex: 30
                         }}
                       />
                     )}
 
-                    {/* Overlay Badges (Non-Clickable Indicators) */}
-                    <div className={`absolute bottom-6 right-6 flex gap-3 z-20 transition-opacity duration-300 ${magnifierState.show ? 'opacity-0' : 'opacity-100'}`}>
+                    {/* Overlay Badges */}
+                   <div className={`absolute bottom-6 right-6 hidden lg:flex gap-3 z-20 transition-opacity duration-300 ${magnifierState.show ? 'opacity-0' : 'opacity-100'}`}>
                       <div className="flex items-center gap-2 bg-yellow-500 text-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide shadow-lg">
                         <ZoomIn size={14} /> Hover to Zoom
                       </div>
@@ -306,21 +295,6 @@ const ProductDetail: React.FC = () => {
                       </div>
                     </div>
                 </div>
-              </div>
-
-              {/* Highlights */}
-              <div className="mt-8 bg-zinc-900/30 border border-zinc-800/50 p-6 rounded">
-                 <h4 className="flex items-center gap-2 text-[11px] font-bold text-yellow-500 uppercase tracking-[0.2em] mb-5">
-                   <Box size={14} /> Engineering Highlights
-                 </h4>
-                 <ul className="space-y-4">
-                    {features.map((feat: string, idx: number) => (
-                      <li key={idx} className="flex items-center gap-3 text-zinc-300 text-sm font-medium">
-                        <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full shrink-0"></div>
-                        {feat}
-                      </li>
-                    ))}
-                 </ul>
               </div>
           </div>
 
@@ -347,24 +321,26 @@ const ProductDetail: React.FC = () => {
                     <span className="text-white text-lg font-medium" style={fontHeading}>{product.head_type || "N/A"}</span>
                   </div>
 
-                  {/* Diameter */}
-                  <div className="grid grid-cols-[140px_1fr] py-4 border-b border-zinc-800 items-center bg-zinc-900/20">
-                    <label className="text-yellow-500 text-[10px] font-bold uppercase tracking-[0.15em] pl-2 flex items-center gap-2">
+                  {/* Diameter (CHANGED: Now using Buttons instead of Dropdown) */}
+                  <div className="grid grid-cols-[140px_1fr] py-6 border-b border-zinc-800 items-start bg-zinc-900/20">
+                    <span className="text-yellow-500 text-[10px] font-bold uppercase tracking-[0.15em] pl-2 flex items-center gap-2 mt-2">
                         <Settings size={12} /> Diameter
-                    </label>
-                    <div className="relative">
-                        <select 
-                            value={selectedDia}
-                            onChange={(e) => setSelectedDia(e.target.value)}
-                            className="w-full md:w-64 bg-zinc-800 text-white border border-zinc-700 rounded px-4 py-2 appearance-none focus:border-yellow-500 focus:outline-none cursor-pointer"
-                            style={fontHeading}
-                        >
-                            <option value="" disabled>Select Diameter</option>
-                            {uniqueDiameters.map(d => (
-                                <option key={d} value={d}>{d}</option>
-                            ))}
-                        </select>
-                        <ChevronRight className="absolute right-4 md:right-[calc(100%-15rem)] top-3 pointer-events-none text-zinc-500 rotate-90" size={16} />
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                        {uniqueDiameters.map((dia: any) => (
+                           <button
+                                key={dia}
+                                onClick={() => setSelectedDia(dia)}
+                                className={`min-w-[60px] px-3 py-2 text-sm font-bold border transition-all ${
+                                    selectedDia === dia 
+                                    ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]' 
+                                    : 'bg-transparent text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-white'
+                                }`}
+                                style={fontHeading}
+                           >
+                               {dia}
+                           </button>
+                        ))}
                     </div>
                   </div>
 
@@ -414,22 +390,29 @@ const ProductDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Applications */}
-              <div>
+              {/* Applications Section */}
+              <div className="mt-10">
                 <h3 className="text-2xl font-semibold text-white mb-6 flex items-center gap-3 uppercase" style={fontHeading}>
-                   Applications
-                   <div className="h-px flex-grow bg-zinc-800"></div>
+                    Applications
+                    <div className="h-px flex-grow bg-zinc-800"></div>
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {applications.map((app: string, idx: number) => (
-                    <div key={idx} className="flex items-center gap-4 p-4 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition-colors">
-                      <div className="w-6 h-6 flex items-center justify-center bg-zinc-800 text-yellow-500">
-                        <Check size={14} strokeWidth={4} />
-                      </div>
-                      <span className="text-zinc-300 text-sm font-medium tracking-wide">{app}</span>
+                
+                {applicationsList.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {applicationsList.map((app: string, idx: number) => (
+                            <div key={idx} className="flex items-center gap-4 p-4 bg-zinc-900 border border-zinc-800 hover:border-yellow-500 hover:text-white transition-colors group">
+                                <div className="w-6 h-6 flex items-center justify-center bg-zinc-800 text-zinc-500 group-hover:text-yellow-500 transition-colors">
+                                    <Check size={14} strokeWidth={4} />
+                                </div>
+                                <span className="text-zinc-300 text-sm font-medium tracking-wide group-hover:text-white uppercase">
+                                    {app}
+                                </span>
+                            </div>
+                        ))}
                     </div>
-                  ))}
-                </div>
+                ) : (
+                    <p className="text-zinc-500 italic">No specific applications listed.</p>
+                )}
               </div>
 
               {/* CTA */}

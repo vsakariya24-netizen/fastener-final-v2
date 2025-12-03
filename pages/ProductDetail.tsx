@@ -8,13 +8,14 @@ import {
   ArrowLeft, 
   Share2, 
   Printer, 
-  Check,
-  FileText,
   Settings,
-  ZoomIn,   
-  Rotate3D,
+  FileText,
+  Check // <--- Added this import for the application icons
 } from 'lucide-react';
 import { PRODUCTS as STATIC_PRODUCTS } from '../constants';
+
+// Adjust path if your file structure is different
+import MagicZoomClone from '../components/MagicZoomClone'; 
 
 const { useParams, Link } = ReactRouterDOM;
 
@@ -32,17 +33,15 @@ const ProductDetail: React.FC = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [activeImageOverride, setActiveImageOverride] = useState<string | null>(null);
 
-  // --- MAGNIFYING GLASS STATE ---
-  const [magnifierState, setMagnifierState] = useState({
-    show: false,
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0
-  });
+  // --- MOBILE STATE ---
+  const [isMobile, setIsMobile] = useState(false);
 
-  const MAGNIFIER_SIZE = 200; 
-  const ZOOM_LEVEL = 2.5;    
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 1024px)").matches);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Inject Fonts
   useEffect(() => {
@@ -63,7 +62,6 @@ const ProductDetail: React.FC = () => {
       setLoading(true);
       try {
         if (!slug) throw new Error("No product slug provided");
-
         const { data: productData, error: productError } = await supabase
           .from('products')
           .select('*')
@@ -85,16 +83,17 @@ const ProductDetail: React.FC = () => {
           .select('*')
           .eq('product_id', productData.id);
         
-        const fullProduct = { ...productData, variants: vData || [] };
+        // Ensure applications is always an array
+        const apps = Array.isArray(productData.applications) 
+            ? productData.applications 
+            : [];
+
+        const fullProduct = { ...productData, applications: apps, variants: vData || [] };
         setProduct(fullProduct);
         
-        // Auto-select first diameter if available
         if (vData && vData.length > 0) {
-            // Hum yaha pehle unique diameters nikal kar sort kar lete hain
             const dias = Array.from(new Set(vData.map((v: any) => v.diameter).filter(Boolean))).sort();
-            if (dias.length > 0) {
-                setSelectedDia(dias[0] as string);
-            }
+            if (dias.length > 0) setSelectedDia(dias[0] as string);
         }
       } catch (err: any) {
         console.error("Error loading product:", err);
@@ -112,7 +111,6 @@ const ProductDetail: React.FC = () => {
       return Array.from(dias).sort(); 
   }, [product]);
 
-  // Smart Filtering: Lengths tabhi dikhengi jo selected Diameter mein available hain
   const availableLengths = useMemo(() => {
       if (!product?.variants || !selectedDia) return [];
       const lengths = new Set(
@@ -121,7 +119,6 @@ const ProductDetail: React.FC = () => {
       return Array.from(lengths).sort(); 
   }, [product, selectedDia]);
 
-  // Auto-select length or reset if current selection is invalid
   useEffect(() => {
       if (availableLengths.length > 0 && !availableLengths.includes(selectedLen)) {
           setSelectedLen(availableLengths[0]);
@@ -151,20 +148,6 @@ const ProductDetail: React.FC = () => {
     return images;
   }, [product, activeImageOverride]);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (window.innerWidth < 1024) return; 
-
-    const { top, left, width, height } = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - left;
-    const y = e.clientY - top;
-    
-    if (x < 0 || y < 0 || x > width || y > height) {
-       setMagnifierState((prev) => ({ ...prev, show: false }));
-       return;
-    }
-
-    setMagnifierState({ show: true, x, y, width, height });
-  };
 
   const fontHeading = { fontFamily: '"Rajdhani", sans-serif' };
   const fontBody = { fontFamily: '"Inter", sans-serif' };
@@ -182,10 +165,6 @@ const ProductDetail: React.FC = () => {
     </div>
   );
 
-  const applicationsList = product.applications 
-    ? product.applications.map((app: any) => typeof app === 'string' ? app : app.name) 
-    : [];
-    
   const currentImage = displayImages[selectedImageIndex];
 
   return (
@@ -240,60 +219,19 @@ const ProductDetail: React.FC = () => {
                   ))}
                 </div>
 
-                {/* --- MAIN IMAGE STAGE --- */}
-                <div 
-                  className="flex-1 relative bg-white rounded-xl shadow-2xl border border-zinc-800 cursor-crosshair overflow-hidden"
-                  onMouseMove={handleMouseMove}
-                  onMouseLeave={handleMouseMove}
-                >
-                    {/* Badge */}
-                    <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-widest pointer-events-none" style={fontHeading}>
-                        Pro Series
-                    </div>
-
-                    {/* The Base Image */}
-                    <div className="w-full h-full flex items-center justify-center p-8 bg-gradient-to-br from-white to-gray-50">
-                        <img 
-                          src={currentImage} 
-                          alt={product.name} 
-                          className="max-w-full max-h-full w-full h-full object-contain mix-blend-multiply"
-                        />
-                    </div>
-
-                    {/* --- THE MAGNIFYING GLASS --- */}
-                    {magnifierState.show && window.innerWidth >= 1024 && (
-                      <div 
-                        className="hidden lg:block"
-                        style={{
-                          position: 'absolute',
-                          left: `${magnifierState.x - MAGNIFIER_SIZE / 2}px`,
-                          top: `${magnifierState.y - MAGNIFIER_SIZE / 2}px`,
-                          width: `${MAGNIFIER_SIZE}px`,
-                          height: `${MAGNIFIER_SIZE}px`,
-                          borderRadius: '50%', 
-                          border: '2px solid #eab308', 
-                          boxShadow: '0 5px 15px rgba(0,0,0,0.3), inset 0 0 20px rgba(255,255,255,0.5)', 
-                          backgroundColor: 'white',
-                          backgroundImage: `url("${currentImage}")`, 
-                          backgroundRepeat: 'no-repeat',
-                          backgroundSize: `${magnifierState.width * ZOOM_LEVEL}px ${magnifierState.height * ZOOM_LEVEL}px`,
-                          backgroundPositionX: `${-magnifierState.x * ZOOM_LEVEL + MAGNIFIER_SIZE / 2}px`,
-                          backgroundPositionY: `${-magnifierState.y * ZOOM_LEVEL + MAGNIFIER_SIZE / 2}px`,
-                          pointerEvents: 'none',
-                          zIndex: 30
-                        }}
-                      />
-                    )}
-
-                    {/* Overlay Badges */}
-                   <div className={`absolute bottom-6 right-6 hidden lg:flex gap-3 z-20 transition-opacity duration-300 ${magnifierState.show ? 'opacity-0' : 'opacity-100'}`}>
-                      <div className="flex items-center gap-2 bg-yellow-500 text-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide shadow-lg">
-                        <ZoomIn size={14} /> Hover to Zoom
-                      </div>
-                      <div className="flex items-center gap-2 bg-white text-zinc-900 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide shadow-lg border border-gray-100">
-                        <Rotate3D size={14} /> 360° View
-                      </div>
-                    </div>
+                {/* Main Image with Magic Zoom */}
+                <div className="flex-1 relative bg-white rounded-xl shadow-2xl border border-zinc-800 h-[500px] flex items-center justify-center p-4">
+                   <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-widest pointer-events-none" style={fontHeading}>
+                      Pro Series
+                   </div>
+                   
+                   <MagicZoomClone 
+                      src={currentImage} 
+                      zoomSrc={currentImage} 
+                      alt={product.name}
+                      zoomLevel={2.5}
+                      glassSize={isMobile ? 120 : 200}
+                   />
                 </div>
               </div>
           </div>
@@ -301,6 +239,7 @@ const ProductDetail: React.FC = () => {
           {/* RIGHT: Technical Details */}
           <div className="lg:col-span-7">
             <div className="space-y-10">
+              
               {/* Specs Header */}
               <div>
                 <h3 className="text-2xl font-semibold text-white mb-6 flex items-center gap-3 uppercase" style={fontHeading}>
@@ -321,7 +260,13 @@ const ProductDetail: React.FC = () => {
                     <span className="text-white text-lg font-medium" style={fontHeading}>{product.head_type || "N/A"}</span>
                   </div>
 
-                  {/* Diameter (CHANGED: Now using Buttons instead of Dropdown) */}
+                   {/* Thread Type */}
+                   <div className="grid grid-cols-[140px_1fr] py-4 border-b border-zinc-800 items-center">
+                    <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.15em] pl-2">Thread Type</span>
+                    <span className="text-white text-lg font-medium" style={fontHeading}>{product.thread_type || "N/A"}</span>
+                  </div>
+
+                  {/* Diameter */}
                   <div className="grid grid-cols-[140px_1fr] py-6 border-b border-zinc-800 items-start bg-zinc-900/20">
                     <span className="text-yellow-500 text-[10px] font-bold uppercase tracking-[0.15em] pl-2 flex items-center gap-2 mt-2">
                         <Settings size={12} /> Diameter
@@ -390,30 +335,29 @@ const ProductDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Applications Section */}
-              <div className="mt-10">
-                <h3 className="text-2xl font-semibold text-white mb-6 flex items-center gap-3 uppercase" style={fontHeading}>
-                    Applications
-                    <div className="h-px flex-grow bg-zinc-800"></div>
-                </h3>
-                
-                {applicationsList.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {applicationsList.map((app: string, idx: number) => (
-                            <div key={idx} className="flex items-center gap-4 p-4 bg-zinc-900 border border-zinc-800 hover:border-yellow-500 hover:text-white transition-colors group">
-                                <div className="w-6 h-6 flex items-center justify-center bg-zinc-800 text-zinc-500 group-hover:text-yellow-500 transition-colors">
-                                    <Check size={14} strokeWidth={4} />
+              {/* --- NEW APPLICATIONS SECTION (MATCHING SCREENSHOT) --- */}
+              {product.applications && product.applications.length > 0 && (
+                <div className="pt-2">
+                    <h3 className="text-2xl font-semibold text-white mb-6 flex items-center gap-3 uppercase" style={fontHeading}>
+                      Applications
+                      <div className="h-px flex-grow bg-zinc-800"></div>
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {product.applications.map((app: string, idx: number) => (
+                            <div key={idx} className="bg-zinc-900/50 border border-zinc-800 p-4 rounded flex items-center gap-4 group hover:border-zinc-700 transition-all">
+                                <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center text-zinc-500 group-hover:text-yellow-500 transition-colors shrink-0">
+                                    <Check size={16} strokeWidth={3} />
                                 </div>
-                                <span className="text-zinc-300 text-sm font-medium tracking-wide group-hover:text-white uppercase">
+                                <span className="text-zinc-300 text-xs md:text-sm font-bold uppercase tracking-wide leading-tight" style={fontHeading}>
                                     {app}
                                 </span>
                             </div>
                         ))}
                     </div>
-                ) : (
-                    <p className="text-zinc-500 italic">No specific applications listed.</p>
-                )}
-              </div>
+                </div>
+              )}
+              {/* --- END APPLICATIONS SECTION --- */}
 
               {/* CTA */}
               <div className="pt-6 flex flex-col sm:flex-row gap-5">

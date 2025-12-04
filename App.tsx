@@ -36,7 +36,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProductProvider } from './contexts/ProductContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
-const { HashRouter: Router, Routes, Route, Navigate } = ReactRouterDOM;
+const { BrowserRouter: Router, Routes, Route, Navigate } = ReactRouterDOM;
 
 const App: React.FC = () => {
   return (

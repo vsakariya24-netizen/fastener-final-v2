@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ZoomIn } from 'lucide-react';
 
 interface MagicZoomProps {
-  src: string;              // The small image to show initially
-  zoomSrc?: string;         // (Optional) A higher-res image for the zoom. Defaults to 'src' if not provided.
+  src: string;
+  zoomSrc?: string;
   alt?: string;
-  zoomLevel?: number;       // Default: 2.5
-  glassSize?: number;       // Default: 200px
+  zoomLevel?: number;
+  glassSize?: number;
 }
 
 const MagicZoomClone: React.FC<MagicZoomProps> = ({ 
@@ -20,10 +20,9 @@ const MagicZoomClone: React.FC<MagicZoomProps> = ({
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [isMobile, setIsMobile] = useState(false);
   
-  // Reference to the image container
   const imgRef = useRef<HTMLDivElement>(null);
 
-  // Detect Mobile device to adjust offset
+  // Detect Mobile
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
     checkMobile();
@@ -31,16 +30,17 @@ const MagicZoomClone: React.FC<MagicZoomProps> = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // --- UNIFIED MOVEMENT LOGIC ---
+  // Set the "floating" distance for mobile (pixels above finger)
+  const MOBILE_OFFSET = 100; 
+
   const processMovement = (clientX: number, clientY: number) => {
     if (!imgRef.current) return;
     const { left, top, width, height } = imgRef.current.getBoundingClientRect();
     
-    // Calculate X/Y relative to the image
     const x = clientX - left;
     const y = clientY - top;
 
-    // Check if we are outside the image
+    // Boundary check
     if (x < 0 || y < 0 || x > width || y > height) {
       setShowMagnifier(false);
       return;
@@ -50,28 +50,21 @@ const MagicZoomClone: React.FC<MagicZoomProps> = ({
     setShowMagnifier(true);
   };
 
-  // --- EVENT HANDLERS ---
   const handleMouseMove = (e: React.MouseEvent) => processMovement(e.clientX, e.clientY);
-  const handleTouchMove = (e: React.TouchEvent) => {
-    // Prevent scrolling while dragging inside the image
-    // e.preventDefault(); // Note: React passive events might block this, CSS 'touch-action: none' is better
-    processMovement(e.touches[0].clientX, e.touches[0].clientY);
-  };
-
+  const handleTouchMove = (e: React.TouchEvent) => processMovement(e.touches[0].clientX, e.touches[0].clientY);
   const handleStart = (e: React.TouchEvent | React.MouseEvent) => {
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
     processMovement(clientX, clientY);
   };
 
-  // The actual source for the zoomed part
   const activeZoomSrc = zoomSrc || src;
 
   return (
     <div 
       ref={imgRef}
       className="relative overflow-hidden cursor-crosshair group select-none w-full h-full flex items-center justify-center bg-white"
-      style={{ touchAction: 'none' }} // CRITICAL: Stops page scrolling on mobile while dragging
+      style={{ touchAction: 'none' }} // Prevents scrolling on mobile
       onMouseEnter={() => setShowMagnifier(true)}
       onMouseLeave={() => setShowMagnifier(false)}
       onMouseMove={handleMouseMove}
@@ -79,42 +72,42 @@ const MagicZoomClone: React.FC<MagicZoomProps> = ({
       onTouchMove={handleTouchMove}
       onTouchEnd={() => setShowMagnifier(false)}
     >
-      {/* The Base Image */}
       <img 
         src={src} 
         alt={alt} 
         className="max-w-full max-h-full w-auto h-auto object-contain pointer-events-none"
       />
 
-      {/* Mobile Hint Overlay (Only shows when NOT zooming) */}
+      {/* Mobile Hint */}
       <div className={`absolute bottom-4 right-4 bg-black/60 text-white text-[10px] px-3 py-1 rounded-full pointer-events-none transition-opacity duration-300 flex items-center gap-2 ${showMagnifier ? 'opacity-0' : 'opacity-100'}`}>
          <ZoomIn size={12} /> {isMobile ? "Touch & Drag" : "Hover to Zoom"}
       </div>
 
-      {/* The Magnifying Glass */}
       {showMagnifier && (
         <div 
           className="absolute z-50 bg-white border-2 border-yellow-500 rounded-full shadow-2xl pointer-events-none"
           style={{
-            // 1. POSITIONING
-            // On mobile, we subtract 70px from Y so the glass floats ABOVE your finger
-            left: `${cursorPos.x - glassSize / 2}px`,
-            top: `${cursorPos.y - glassSize / 2 - (isMobile ? 70 : 0)}px`,
+            // 1. SIZE
             width: `${glassSize}px`,
             height: `${glassSize}px`,
 
-            // 2. BACKGROUND IMAGE (The Zoomed Version)
+            // 2. POSITION THE GLASS BOX
+            // On mobile, we subtract MOBILE_OFFSET to move the glass UP above your finger
+            left: `${cursorPos.x - glassSize / 2}px`,
+            top: `${cursorPos.y - glassSize / 2 - (isMobile ? MOBILE_OFFSET : 0)}px`,
+
+            // 3. BACKGROUND IMAGE
             backgroundImage: `url('${activeZoomSrc}')`,
             backgroundRepeat: 'no-repeat',
             
-            // 3. ZOOM MATH
-            // We scale the background size relative to the container size
+            // 4. BACKGROUND SIZE
             backgroundSize: `${(imgRef.current?.offsetWidth || 0) * zoomLevel}px ${(imgRef.current?.offsetHeight || 0) * zoomLevel}px`,
             
-            // 4. OFFSET MATH
-            // We match the background position to the cursor, but compensated for the glass offset
+            // 5. BACKGROUND POSITION (The Fix)
+            // Even though the Glass moved UP, we want the image inside to show the point at `cursorPos`.
+            // So we DO NOT add the offset here. The math remains standard.
             backgroundPositionX: `${-cursorPos.x * zoomLevel + glassSize / 2}px`,
-            backgroundPositionY: `${-(cursorPos.y) * zoomLevel + glassSize / 2 + (isMobile ? 70 * zoomLevel : 0)}px` 
+            backgroundPositionY: `${-cursorPos.y * zoomLevel + glassSize / 2}px` 
           }}
         />
       )}

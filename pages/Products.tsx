@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+// Import the new Creative Loader
+import CreativeLoader from '../components/CreativeLoader'; 
 import { Product } from '../types';
 import {
   Search, ChevronDown, ChevronRight, Filter,
-  ArrowRight, X, Loader2, CornerDownRight,
+  ArrowRight, X, CornerDownRight,
   LayoutGrid, SlidersHorizontal, Layers
 } from 'lucide-react';
 
@@ -18,22 +20,24 @@ type CategoryNode = {
 type SubCategoryNode = {
   id: string;
   name: string;
+  category_id: string;
   child_categories: ChildCategoryNode[];
 };
 
 type ChildCategoryNode = {
   id: string;
   name: string;
+  sub_category_id: string;
 };
 
 const Products: React.FC = () => {
+  
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialCat = searchParams.get('category') || 'All';
   
   // State
-  const [activeCategory, setActiveCategory] = useState(initialCat); // Stores the ID of the selected level
-  const [expandedCats, setExpandedCats] = useState<string[]>([]); // For accordion
-  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]); // Dynamic Data
+  const [activeCategory, setActiveCategory] = useState('All'); 
+  const [expandedCats, setExpandedCats] = useState<string[]>([]);
+  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
@@ -41,7 +45,7 @@ const Products: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
 
-  // --- 1. FETCH DATA (HIERARCHY & PRODUCTS) ---
+  // --- 1. FETCH DATA & RESOLVE URL ---
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -50,10 +54,12 @@ const Products: React.FC = () => {
         const { data: cats } = await supabase.from('categories').select('*').order('name');
         const { data: subs } = await supabase.from('sub_categories').select('*').order('name');
         const { data: childs } = await supabase.from('child_categories').select('*').order('name');
-        
+        const { data: productData } = await supabase.from('products').select('*');
+
         // B. Build Tree Structure
+        let tree: CategoryNode[] = [];
         if (cats && subs) {
-          const tree = cats.map(cat => ({
+          tree = cats.map(cat => ({
             id: cat.id,
             name: cat.name,
             sub_categories: subs
@@ -61,43 +67,90 @@ const Products: React.FC = () => {
               .map(sub => ({
                 id: sub.id,
                 name: sub.name,
+                category_id: sub.category_id,
                 child_categories: childs ? childs.filter(c => c.sub_category_id === sub.id) : []
               }))
           }));
           setCategoryTree(tree);
-          
-          // Auto-expand the section if a category is active in URL
-          if (initialCat !== 'All') {
-             // Find parent of active category to expand it
-             const parentCat = tree.find(c => c.id === initialCat || c.sub_categories.some(s => s.id === initialCat || s.child_categories.some(child => child.id === initialCat)));
-             if (parentCat) setExpandedCats(prev => [...prev, parentCat.id]);
-          }
         }
 
-        // C. Fetch Products
-        const { data: productData } = await supabase.from('products').select('*');
         if (productData) {
           setProducts(productData);
         }
+
+        // C. Resolve URL Parameter to an ID
+        const urlParam = searchParams.get('category');
+        if (urlParam && urlParam !== 'All') {
+          const paramLower = urlParam.toLowerCase();
+          let foundId = '';
+          let parentToExpand = '';
+
+          // Search Level 1
+          const mainMatch = tree.find(c => c.name.toLowerCase() === paramLower || c.id === urlParam);
+          if (mainMatch) {
+            foundId = mainMatch.id;
+            parentToExpand = mainMatch.id;
+          } else {
+            // Search Level 2 & 3
+            for (const cat of tree) {
+              const subMatch = cat.sub_categories.find(s => s.name.toLowerCase() === paramLower || s.id === urlParam);
+              if (subMatch) {
+                foundId = subMatch.id;
+                parentToExpand = cat.id;
+                break;
+              }
+              for (const sub of cat.sub_categories) {
+                const childMatch = sub.child_categories.find(c => c.name.toLowerCase() === paramLower || c.id === urlParam);
+                if (childMatch) {
+                  foundId = childMatch.id;
+                  parentToExpand = cat.id; 
+                  break;
+                }
+              }
+              if (foundId) break;
+            }
+          }
+
+          if (foundId) {
+            setActiveCategory(foundId);
+            setExpandedCats(prev => [...prev, parentToExpand]);
+          }
+        }
+
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
-        setLoading(false);
+        // 🔥 This TIMEOUT creates the "Industrial Lag" feel
+        // This ensures your animation plays for at least 2.5 seconds
+        setTimeout(() => {
+            setLoading(false);
+        }, 2500); 
       }
     };
     fetchData();
-  }, []);
+  }, []); 
 
-  // --- 2. SYNC URL ---
+  // --- 2. SYNC STATE TO URL ---
   useEffect(() => {
     if (activeCategory === 'All') {
       searchParams.delete('category');
     } else {
-      searchParams.set('category', activeCategory);
+      let nameForUrl = activeCategory;
+      const main = categoryTree.find(c => c.id === activeCategory);
+      if (main) nameForUrl = main.name;
+      else {
+        for (const c of categoryTree) {
+          const sub = c.sub_categories.find(s => s.id === activeCategory);
+          if (sub) { nameForUrl = sub.name; break; }
+          const child = c.sub_categories.flatMap(s => s.child_categories).find(ch => ch.id === activeCategory);
+          if (child) { nameForUrl = child.name; break; }
+        }
+      }
+      searchParams.set('category', nameForUrl.toLowerCase());
     }
     setSearchParams(searchParams);
     setCurrentPage(1);
-  }, [activeCategory, setSearchParams, searchParams]);
+  }, [activeCategory, categoryTree]); 
 
   const toggleCategory = (id: string) => {
     setExpandedCats(prev =>
@@ -105,56 +158,36 @@ const Products: React.FC = () => {
     );
   };
 
-  // --- 3. FILTERING LOGIC (DYNAMIC 3-LEVEL) ---
+  // --- 3. FILTERING LOGIC ---
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       let categoryMatch = true;
 
       if (activeCategory !== 'All') {
-        // We need to determine if 'activeCategory' is a Main ID, Sub ID, or Child ID.
-        // We traverse the tree to find where this ID belongs.
-        
-        let foundLevel = 0; // 0=None, 1=Main, 2=Sub, 3=Child
+        let foundLevel = 0; 
         let mainCategoryName = '';
 
-        // Check Level 1 (Main Categories)
         const mainCat = categoryTree.find(c => c.id === activeCategory);
         if (mainCat) {
            foundLevel = 1;
            mainCategoryName = mainCat.name;
         } else {
-           // Check Level 2 & 3
            for (const cat of categoryTree) {
-              const sub = cat.sub_categories.find(s => s.id === activeCategory);
-              if (sub) {
-                  foundLevel = 2; 
-                  break;
-              }
-              // Check Level 3
-              for (const s of cat.sub_categories) {
-                  const child = s.child_categories.find(c => c.id === activeCategory);
-                  if (child) {
-                      foundLevel = 3;
-                      break;
-                  }
-              }
-              if (foundLevel > 0) break;
+             const sub = cat.sub_categories.find(s => s.id === activeCategory);
+             if (sub) { foundLevel = 2; break; }
+             const child = cat.sub_categories.flatMap(s => s.child_categories).find(c => c.id === activeCategory);
+             if (child) { foundLevel = 3; break; }
            }
         }
 
-        // Apply Logic based on level found
         if (foundLevel === 1) {
-            // Filter by Category NAME (since AddProduct stores Name for Level 1)
-            categoryMatch = p.category === mainCategoryName;
+           categoryMatch = p.category?.toLowerCase() === mainCategoryName.toLowerCase();
         } else if (foundLevel === 2) {
-            // Filter by SubCategory ID
-            categoryMatch = p.sub_category === activeCategory;
+           categoryMatch = p.sub_category === activeCategory;
         } else if (foundLevel === 3) {
-            // Filter by ChildCategory ID
-            categoryMatch = p.child_category === activeCategory;
+           categoryMatch = p.child_category === activeCategory;
         } else {
-            // Fallback: Try matching simple strings if IDs fail (legacy support)
-            categoryMatch = p.category === activeCategory || p.sub_category === activeCategory;
+           categoryMatch = p.category === activeCategory || p.sub_category === activeCategory;
         }
       }
 
@@ -168,6 +201,13 @@ const Products: React.FC = () => {
     currentPage * itemsPerPage
   );
 
+  // 🔥 3. FULL SCREEN PRELOADER
+  // Swapped Preloader for CreativeLoader here!
+  if (loading) {
+    return <CreativeLoader />;
+  }
+
+  // --- MAIN RENDER ---
   return (
     <div className="bg-gray-50 min-h-screen font-sans text-gray-800">
       
@@ -186,7 +226,13 @@ const Products: React.FC = () => {
           <div className="inline-flex items-center bg-white/5 backdrop-blur-sm px-4 py-2 rounded-full border border-white/10 text-sm font-medium">
             <Link to="/" className="text-gray-400 hover:text-white transition-colors">Home</Link>
             <ChevronRight size={14} className="mx-2 text-gray-600" />
-            <span className="text-yellow-400">Catalogue</span>
+            <button onClick={() => setActiveCategory('All')} className="text-gray-400 hover:text-white transition-colors">
+              Categories
+            </button>
+            <ChevronRight size={14} className="mx-2 text-gray-600" />
+            <span className="text-yellow-400">
+              {activeCategory === 'All' ? 'All Products' : 'Selection'}
+            </span>
           </div>
         </div>
       </div>
@@ -194,7 +240,7 @@ const Products: React.FC = () => {
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex flex-col lg:flex-row gap-10">
           
-          {/* ================= SIDEBAR (DYNAMIC) ================= */}
+          {/* ================= SIDEBAR ================= */}
           <aside className="w-full lg:w-[280px] flex-shrink-0">
             <div className="sticky top-24 space-y-6">
               
@@ -218,7 +264,9 @@ const Products: React.FC = () => {
               {/* Dynamic Filter Tree */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between bg-white">
-                  <h3 className="font-bold text-gray-900 flex items-center gap-2"><SlidersHorizontal size={18} className="text-yellow-500" /> Filters</h3>
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <SlidersHorizontal size={18} className="text-yellow-500" /> Filters
+                  </h3>
                   {activeCategory !== 'All' && (
                     <button onClick={() => setActiveCategory('All')} className="text-xs font-bold text-gray-400 hover:text-red-500 uppercase tracking-wide transition-colors">Clear</button>
                   )}
@@ -233,16 +281,12 @@ const Products: React.FC = () => {
                     <LayoutGrid size={16} /> View All
                   </button>
 
-                  {loading ? (
-                      <div className="flex justify-center py-4"><Loader2 className="animate-spin text-gray-300"/></div>
-                  ) : categoryTree.map((cat) => (
+                   {categoryTree.map((cat) => (
                     <div key={cat.id} className="pt-2">
-                      
-                      {/* LEVEL 1: Main Category */}
                       <div className="px-1 mb-1">
                           <button
                             className={`flex items-center justify-between w-full p-2 text-xs font-bold uppercase tracking-widest transition-colors rounded-lg
-                             ${activeCategory === cat.id ? 'bg-yellow-50 text-yellow-700' : 'text-gray-400 hover:text-gray-900'}`}
+                            ${activeCategory === cat.id ? 'bg-yellow-50 text-yellow-700' : 'text-gray-400 hover:text-gray-900'}`}
                             onClick={() => {
                                 toggleCategory(cat.id);
                                 setActiveCategory(cat.id);
@@ -253,13 +297,11 @@ const Products: React.FC = () => {
                           </button>
                       </div>
 
-                      {/* LEVEL 2: Sub Category Accordion */}
                       <div className={`space-y-1 overflow-hidden transition-all duration-500 ease-in-out ${expandedCats.includes(cat.id) ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                            {cat.sub_categories.map((sub) => {
                              const isActiveSub = activeCategory === sub.id;
-                             // Check if any child of this sub is active to expand sub
                              const isChildActive = sub.child_categories.some(c => c.id === activeCategory);
-                             const showChildren = isActiveSub || isChildActive; // Logic to expand children list
+                             const showChildren = isActiveSub || isChildActive; 
 
                              return (
                                <div key={sub.id} className="pl-2">
@@ -272,18 +314,17 @@ const Products: React.FC = () => {
                                  >
                                     <span className="flex-1 truncate">{sub.name}</span>
                                     {sub.child_categories.length > 0 && (
-                                        <ChevronRight size={12} className={`text-gray-300 transition-transform ${showChildren ? 'rotate-90' : ''}`} />
+                                       <ChevronRight size={12} className={`text-gray-300 transition-transform ${showChildren ? 'rotate-90' : ''}`} />
                                     )}
                                  </button>
 
-                                 {/* LEVEL 3: Child Category */}
                                  {sub.child_categories.length > 0 && (
                                      <div className={`ml-4 pl-3 border-l border-gray-200 mt-1 space-y-1 overflow-hidden transition-all duration-300 ${showChildren ? 'max-h-60 opacity-100 py-1' : 'max-h-0 opacity-0'}`}>
                                         {sub.child_categories.map(child => (
                                             <button
                                                 key={child.id}
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); // Prevent triggering sub click
+                                                    e.stopPropagation();
                                                     setActiveCategory(child.id);
                                                 }}
                                                 className={`w-full text-left px-3 py-1.5 text-xs rounded transition-colors flex items-center gap-2
@@ -311,7 +352,7 @@ const Products: React.FC = () => {
 
           {/* ================= PRODUCT GRID ================= */}
           <div className="flex-1">
-            <div className="flex flex-col sm:flex-row justify-between items-end mb-8 border-b border-gray-200 pb-4">
+             <div className="flex flex-col sm:flex-row justify-between items-end mb-8 border-b border-gray-200 pb-4">
                <div>
                   <h2 className="text-3xl font-bold text-gray-900">
                     {activeCategory === 'All' ? 'Complete Catalogue' : 'Filtered Selection'}
@@ -323,12 +364,7 @@ const Products: React.FC = () => {
                </span>
             </div>
 
-            {loading ? (
-               <div className="flex flex-col items-center justify-center py-32 text-gray-400">
-                 <Loader2 size={48} className="animate-spin text-yellow-400 mb-4" />
-                 <p className="text-sm font-medium animate-pulse">Loading products...</p>
-               </div>
-            ) : paginatedProducts.length > 0 ? (
+            {paginatedProducts.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {paginatedProducts.map((product) => (
                   <Link
@@ -336,48 +372,42 @@ const Products: React.FC = () => {
                     to={`/product/${product.slug}`}
                     className="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col hover:shadow-xl hover:border-yellow-400/50 transition-all duration-500"
                   >
-                    {/* Badge */}
-                    <div className="absolute top-4 left-4 z-10">
-                       <span className="px-2.5 py-1 rounded-md bg-gray-900 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                          {product.category}
-                       </span>
-                    </div>
-
-                    {/* Image */}
-                    <div className="relative w-full aspect-square bg-white p-4 flex items-center justify-center overflow-hidden">
-                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-50 to-white opacity-50"></div>
-                       {product.images?.[0] ? (
-                         <img
-                           src={product.images[0]}
-                           alt={product.name}
-                           className="relative z-10 w-full h-full object-contain drop-shadow-lg transform transition-transform duration-700 ease-out group-hover:scale-110"
-                         />
-                       ) : (
-                         <div className="text-gray-300 text-xs">No Image</div>
-                       )}
-                       {/* Overlay Button */}
-                       <div className="absolute bottom-0 left-0 w-full p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-20">
-                          <button className="w-full bg-yellow-400 text-black font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-yellow-300 transition-colors">
-                            View Details <ArrowRight size={16} />
-                          </button>
-                       </div>
-                    </div>
-                    
-                    {/* Details */}
-                    <div className="p-6 pt-4 flex-grow flex flex-col border-t border-gray-50">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2 leading-snug group-hover:text-yellow-600 transition-colors">
-                        {product.name}
-                      </h3>
-                      {product.child_category && (
-                          <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
-                              <CornerDownRight size={12}/> Specific Type
-                          </p>
-                      )}
-                      <div className="mt-auto pt-3 flex items-center justify-between text-xs font-medium text-gray-400 border-t border-gray-100 border-dashed">
-                          <span>In Stock</span>
-                          <span className="text-green-500 flex items-center gap-1"><Layers size={12}/> Available</span>
+                      <div className="absolute top-4 left-4 z-10">
+                         <span className="px-2.5 py-1 rounded-md bg-gray-900 text-white text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                            {product.category}
+                        </span>
                       </div>
-                    </div>
+                      <div className="relative w-full aspect-square bg-white p-4 flex items-center justify-center overflow-hidden">
+                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-50 to-white opacity-50"></div>
+                         {product.images?.[0] ? (
+                           <img
+                             src={product.images[0]}
+                             alt={product.name}
+                             className="relative z-10 w-full h-full object-contain drop-shadow-lg transform transition-transform duration-700 ease-out group-hover:scale-110"
+                           />
+                         ) : (
+                           <div className="text-gray-300 text-xs">No Image</div>
+                         )}
+                         <div className="absolute bottom-0 left-0 w-full p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-20">
+                            <button className="w-full bg-yellow-400 text-black font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 hover:bg-yellow-300 transition-colors">
+                              View Details <ArrowRight size={16} />
+                            </button>
+                         </div>
+                      </div>
+                      <div className="p-6 pt-4 flex-grow flex flex-col border-t border-gray-50">
+                        <h3 className="text-lg font-bold text-gray-900 mb-2 leading-snug group-hover:text-yellow-600 transition-colors">
+                          {product.name}
+                        </h3>
+                        {product.child_category && (
+                           <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
+                               <CornerDownRight size={12}/> Specific Type
+                           </p>
+                        )}
+                        <div className="mt-auto pt-3 flex items-center justify-between text-xs font-medium text-gray-400 border-t border-gray-100 border-dashed">
+                           <span>In Stock</span>
+                           <span className="text-green-500 flex items-center gap-1"><Layers size={12}/> Available</span>
+                        </div>
+                      </div>
                   </Link>
                 ))}
               </div>
@@ -393,8 +423,7 @@ const Products: React.FC = () => {
                  </button>
               </div>
             )}
-
-            {/* Pagination UI */}
+            
             {paginatedProducts.length > 0 && (
                <div className="mt-12 flex justify-center gap-2">
                   <button disabled={currentPage === 1} onClick={() => setCurrentPage(c => c-1)} className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50"><ChevronDown className="rotate-90" size={20}/></button>

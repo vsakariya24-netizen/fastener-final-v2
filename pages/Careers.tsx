@@ -35,7 +35,7 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
   const phoneNumber = "918758700783"; 
 
   // --- 2. MESSAGE SET KAREIN ---
-  const message = `Hello, I am interested in the position of *${job.title}* at Durable Fastener. Please guide me on how to apply.`;
+  const message = `Hello, I am interested in the position of ${job.title} at Durable Fastener. Please guide me on how to apply.`;
 
   // --- 3. SMART LOGIC (Mobile vs PC) ---
   const handleApplyClick = (e: React.MouseEvent) => {
@@ -238,3 +238,4 @@ const Careers: React.FC = () => {
 };
 
 export default Careers;
+

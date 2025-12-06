@@ -32,7 +32,7 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   // 2. WHATSAPP LOGIC YAHAN HAI
-  const phoneNumber = "8758700783"; // <--- REPLACE THIS WITH YOUR NUMBER (e.g. 919825xxxxxx)
+  const phoneNumber = "+918758700783"; // <--- REPLACE THIS WITH YOUR NUMBER (e.g. 919825xxxxxx)
   const message = `Hello, I am interested in the position of *${job.title}* at Durable Fastener. Please guide me on how to apply.`;
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
@@ -193,5 +193,6 @@ const Careers: React.FC = () => {
     </div>
   );
 };
+
 
 export default Careers;

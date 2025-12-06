@@ -31,19 +31,41 @@ const getBadgeColor = (text: string) => {
 const JobCard: React.FC<{ job: any }> = ({ job }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // 2. WHATSAPP LOGIC YAHAN HAI
-  const phoneNumber = "918758700783"; // <--- REPLACE THIS WITH YOUR NUMBER (e.g. 919825xxxxxx)
-  const message = `Hello, I am interested in the position of *${job.title}* at Durable Fastener. Please guide me on how to apply.`;
-  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+  // --- 1. APNA NUMBER YAHAN DALEIN ---
+  const phoneNumber = "918758700783"; 
 
-  return (
+  // --- 2. MESSAGE SET KAREIN ---
+  const message = `Hello, I am interested in the position of *${job.title}* at Durable Fastener. Please guide me on how to apply.`;
+
+  // --- 3. SMART LOGIC (Mobile vs PC) ---
+  const handleApplyClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    // Check karein ki user Mobile par hai ya PC par
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    let url = "";
+
+    if (isMobile) {
+      // Mobile hai toh App khulega
+      url = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    } else {
+      // Laptop/PC hai toh seedha WhatsApp Web khulega
+      url = `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    }
+
+    // New Tab mein open karein
+    window.open(url, '_blank');
+  };
+ return (
     <div className="group relative bg-white rounded-3xl border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
       
+      {/* Decorative Line */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-gray-200 via-gray-400 to-gray-200 opacity-0 group-hover:opacity-100 transition-opacity" />
 
       <div className="p-6 md:p-8">
         
-        {/* --- HEADER --- */}
+        {/* Header Section */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-8">
           <div className="flex-1">
             <div className="flex flex-wrap gap-2 mb-4">
@@ -72,29 +94,52 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
           </button>
         </div>
 
-        {/* --- GRID INFO --- */}
+        {/* Info Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-center gap-4 group-hover:border-gray-200 transition-colors">
-            <div className="bg-white p-3 rounded-xl shadow-sm text-gray-400"><Briefcase size={20} /></div>
-            <div><p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Experience</p><p className="text-sm font-bold text-gray-900">{job.experience || 'Not Specified'}</p></div>
+            <div className="bg-white p-3 rounded-xl shadow-sm text-gray-400">
+              <Briefcase size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Experience</p>
+              <p className="text-sm font-bold text-gray-900">{job.experience || 'Not Specified'}</p>
+            </div>
           </div>
+
           <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-center gap-4 group-hover:border-gray-200 transition-colors">
-            <div className="bg-white p-3 rounded-xl shadow-sm text-gray-400"><IndianRupee size={20} /></div>
-            <div><p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Salary</p><p className="text-sm font-bold text-gray-900">{job.salary || 'Competitive'}</p></div>
+            <div className="bg-white p-3 rounded-xl shadow-sm text-gray-400">
+              <IndianRupee size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Salary</p>
+              <p className="text-sm font-bold text-gray-900">{job.salary || 'Competitive'}</p>
+            </div>
           </div>
+
           <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex items-center gap-4 group-hover:border-gray-200 transition-colors">
-            <div className="bg-white p-3 rounded-xl shadow-sm text-gray-400"><MapPin size={20} /></div>
-            <div><p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Location</p><p className="text-sm font-bold text-gray-900">{job.location || 'Rajkot, Gujarat'}</p></div>
+            <div className="bg-white p-3 rounded-xl shadow-sm text-gray-400">
+              <MapPin size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Location</p>
+              <p className="text-sm font-bold text-gray-900">{job.location || 'Rajkot, Gujarat'}</p>
+            </div>
           </div>
         </div>
 
-        {/* --- EXPANDED DETAILS --- */}
-        <div className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100 mt-8' : 'grid-rows-[0fr] opacity-0'}`}>
+        {/* Expanded Details */}
+        <div 
+          className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100 mt-8' : 'grid-rows-[0fr] opacity-0'}`}
+        >
           <div className="overflow-hidden">
             <div className="border-t border-gray-100 pt-8">
               
               <div 
-                className="prose prose-zinc max-w-none prose-headings:font-black prose-headings:text-gray-900 prose-p:text-gray-600 prose-p:leading-relaxed prose-li:text-gray-600 prose-li:marker:text-gray-300 prose-strong:text-gray-900 prose-strong:font-bold"
+                className="prose prose-zinc max-w-none 
+                  prose-headings:font-black prose-headings:text-gray-900 
+                  prose-p:text-gray-600 prose-p:leading-relaxed
+                  prose-li:text-gray-600 prose-li:marker:text-gray-300
+                  prose-strong:text-gray-900 prose-strong:font-bold"
                 dangerouslySetInnerHTML={{ __html: job.description }} 
               />
 
@@ -113,7 +158,7 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
                 </div>
               )}
 
-              {/* 3. BUTTON SECTION CHANGED TO WHATSAPP */}
+              {/* Call To Action Box (Green Theme for WhatsApp) */}
               <div className="bg-green-50 border border-green-200 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
                 <div className="absolute -right-10 -top-10 text-green-100 opacity-50 rotate-12">
                   <MessageCircle size={150} />
@@ -129,14 +174,13 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
                   </p>
                 </div>
 
-                <a 
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="relative z-10 flex items-center gap-2 bg-green-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-700 hover:-translate-y-1 hover:shadow-lg transition-all active:scale-95"
+                {/* 4. BUTTON CLICK HANDLER UPDATED */}
+                <button 
+                  onClick={handleApplyClick}
+                  className="relative z-10 flex items-center gap-2 bg-green-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-700 hover:-translate-y-1 hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                 >
                   <MessageCircle size={20} /> Apply via WhatsApp
-                </a>
+                </button>
               </div>
 
             </div>
@@ -147,7 +191,6 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
     </div>
   );
 };
-
 // --- MAIN PAGE ---
 const Careers: React.FC = () => {
   const [jobs, setJobs] = useState<any[]>([]);
@@ -194,6 +237,4 @@ const Careers: React.FC = () => {
   );
 };
 
-
 export default Careers;
-

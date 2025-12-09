@@ -104,8 +104,11 @@ const AddJob: React.FC = () => {
     title: '',
     department: 'Accounts & Finance',
     type: 'Full-time, On-site',
-    location_short: '',
-    salary: '',
+    gender: 'Any', 
+    location_short: 'RAJKOT', // Default CAPITAL
+    salary: '',      
+    salary_min: '',  
+    salary_max: '',  
     experience: '',
     skills: '',
     intro: '',
@@ -159,12 +162,9 @@ const AddJob: React.FC = () => {
             const strongTag = li.querySelector('strong');
             if (strongTag) {
               const title = strongTag.textContent?.replace(/:$/, '').trim() || '';
-              // Grab text after the strong tag
               let detail = '';
-              // Try getting text node
               const nodes = Array.from(li.childNodes);
               const textNode = nodes.find(n => n.nodeType === Node.TEXT_NODE && n.textContent?.trim());
-              // Or check span
               const spanNode = li.querySelector('span:not(.bg-gray-400)'); 
               
               if (spanNode) {
@@ -175,7 +175,6 @@ const AddJob: React.FC = () => {
               
               return { title, detail };
             } else {
-              // Fallback for simple lists
               const spanText = li.querySelector('span:last-child')?.textContent || '';
               return { title: '', detail: spanText || li.textContent?.trim() || '' };
             }
@@ -193,8 +192,11 @@ const AddJob: React.FC = () => {
         title: data.title,
         department: data.department,
         type: data.type,
+        gender: data.gender || 'Any', 
         location_short: data.location,
         salary: data.salary,
+        salary_min: data.salary_min || '',
+        salary_max: data.salary_max || '',
         experience: data.experience,
         skills: data.skills,
         intro: introText,
@@ -218,7 +220,6 @@ const AddJob: React.FC = () => {
     e.preventDefault();
     setLoading(true);
 
-    // --- HTML GENERATOR ---
     const generateListHTML = (items: ListItem[]) => {
       const validItems = items.filter(i => i.title.trim() !== '' || i.detail.trim() !== '');
       if (validItems.length === 0) return '';
@@ -288,32 +289,31 @@ const AddJob: React.FC = () => {
       title: formData.title,
       department: formData.department,
       type: formData.type,
+      gender: formData.gender, 
       location: formData.location_short,
       experience: formData.experience,
       salary: formData.salary,
+      salary_min: formData.salary_min ? parseInt(String(formData.salary_min)) : 0,
+      salary_max: formData.salary_max ? parseInt(String(formData.salary_max)) : 0,
       skills: formData.skills,
       description: formattedDescription
     };
     
     let error;
     
-    // --- 🛠️ UPDATE FIX: Force Numeric ID and use .select() ---
     if (isEditMode && id) {
       console.log("Saving Update...", payload);
-      
       const { error: updateError, data } = await supabase
         .from('jobs')
         .update(payload)
-        .eq('id', parseInt(id)) // Ensure ID is a number
+        .eq('id', parseInt(id))
         .select();
 
-      // Check if update actually touched a row
       if (data && data.length === 0) {
         alert("Update failed. Please check Database Permissions (RLS).");
         setLoading(false);
         return;
       }
-      
       error = updateError;
     } else {
       const { error: insertError } = await supabase.from('jobs').insert([payload]);
@@ -324,7 +324,6 @@ const AddJob: React.FC = () => {
       console.error(error);
       alert('Error: ' + error.message);
     } else {
-      // Small delay to ensure DB sync before redirect
       setTimeout(() => navigate('/admin/jobs'), 500);
     }
     setLoading(false);
@@ -370,6 +369,7 @@ const AddJob: React.FC = () => {
                     <option>HR & Admin</option>
                     <option>Quality Assurance</option>
                     <option>Research & Development</option> 
+                    <option>Factory/Warehouse Operations</option> 
                  </select>
               </div>
 
@@ -384,19 +384,44 @@ const AddJob: React.FC = () => {
               </div>
 
               <div>
-                 <label className="label">Location (City)</label>
-                 <div className="relative">
-                   <MapPin size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                   <input className="input-field pl-10" placeholder="e.g. Rajkot, Gujarat" value={formData.location_short} onChange={e => setFormData({...formData, location_short: e.target.value})} />
-                 </div>
+                 <label className="label">Gender Preference</label>
+                 <select className="input-field bg-white" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
+                    <option value="Any">Any (Male or Female)</option>
+                    <option value="Male">Male Only</option>
+                    <option value="Female">Female Only</option>
+                 </select>
               </div>
 
+              {/* UPDATED LOCATION SELECTOR - ALL CAPS VALUES */}
               <div>
-                 <label className="label">Salary Range</label>
-                 <div className="relative">
+                 <label className="label">Location (City)</label>
+                 <select className="input-field bg-white" value={formData.location_short} onChange={e => setFormData({...formData, location_short: e.target.value})}>
+                    <option value="RAJKOT">RAJKOT</option>
+                    <option value="SURAT">SURAT</option>
+                    <option value="RAVKI">RAVKI</option>
+                    <option value="RAJKOT / SURAT">RAJKOT / SURAT</option>
+                 </select>
+              </div>
+
+              {/* SALARY SECTION */}
+              <div>
+                 <label className="label">Salary Display Text</label>
+                 <div className="relative mb-2">
                    <IndianRupee size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                   <input className="input-field pl-10" placeholder="e.g. ₹8,000 - ₹30,000 per month" value={formData.salary} onChange={e => setFormData({...formData, salary: e.target.value})} />
+                   <input className="input-field pl-10" placeholder="e.g. ₹15,000 - ₹30,000" value={formData.salary} onChange={e => setFormData({...formData, salary: e.target.value})} />
                  </div>
+                 
+                 <div className="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                    <div>
+                        <label className="text-xs font-bold text-gray-500">Min (Number)</label>
+                        <input type="number" className="w-full p-1 text-sm border rounded" placeholder="15000" value={formData.salary_min} onChange={e => setFormData({...formData, salary_min: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500">Max (Number)</label>
+                        <input type="number" className="w-full p-1 text-sm border rounded" placeholder="30000" value={formData.salary_max} onChange={e => setFormData({...formData, salary_max: e.target.value})} />
+                    </div>
+                 </div>
+                 <p className="text-[10px] text-gray-400 mt-1">Enter raw numbers for filters (e.g., 15000).</p>
               </div>
 
               <div>
@@ -450,7 +475,7 @@ const AddJob: React.FC = () => {
 
           <hr className="border-gray-100" />
 
-          {/* Dynamic Lists (2 Columns per item) */}
+          {/* Dynamic Lists */}
           <div className="grid grid-cols-1 gap-8">
             <ListInputSection 
                 title="Key Responsibilities" 

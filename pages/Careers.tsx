@@ -2,26 +2,36 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Briefcase, MapPin, IndianRupee, ChevronDown, ChevronUp, Send, 
-  Clock, Sparkles, Search, Filter, X, Building2, Users
+  Clock, Search, Filter, X, Users, User, ArrowRight, Building2
 } from 'lucide-react';
 
 // --- HELPERS ---
-const getBadgeColor = (text: string) => {
+const getBadgeStyles = (text: string) => {
   const t = text ? text.toLowerCase() : '';
-  if (t.includes('engineer') || t.includes('manufactur') || t.includes('dispatch')) return 'bg-blue-50 text-blue-700 border-blue-100';
-  if (t.includes('sales') || t.includes('market') || t.includes('export')) return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-  if (t.includes('financ') || t.includes('account')) return 'bg-amber-50 text-amber-700 border-amber-100';
-  if (t.includes('admin') || t.includes('hr') || t.includes('found')) return 'bg-purple-50 text-purple-700 border-purple-100';
-  return 'bg-gray-50 text-gray-700 border-gray-100';
+  if (t.includes('engineer') || t.includes('manufactur') || t.includes('dispatch')) return 'bg-blue-50 text-blue-700 ring-blue-600/20';
+  if (t.includes('sales') || t.includes('market') || t.includes('export')) return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20';
+  if (t.includes('financ') || t.includes('account')) return 'bg-amber-50 text-amber-700 ring-amber-600/20';
+  if (t.includes('admin') || t.includes('hr') || t.includes('found')) return 'bg-purple-50 text-purple-700 ring-purple-600/20';
+  return 'bg-slate-100 text-slate-700 ring-slate-500/20';
 };
 
-// --- JOB CARD COMPONENT ---
+// --- CONSTANTS ---
+const SALARY_RANGES = [
+  { label: '< 15k', min: 0, max: 15000 },
+  { label: '15k - 30k', min: 15000, max: 30000 },
+  { label: '30k - 50k', min: 30000, max: 50000 },
+  { label: '50k - 1L', min: 50000, max: 100000 },
+  { label: '1L+', min: 100000, max: 1000000 },
+];
+
+// --- COMPONENTS ---
+
+// 1. Polished Job Card
 const JobCard: React.FC<{ job: any }> = ({ job }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleApply = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Default to a generic number if not specific
     const phoneNumber = "919876543210"; 
     const message = `Hello, I am interested in the position of *${job.title}* at Durable Fastener.`;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -32,113 +42,152 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
   };
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
-      <div className="absolute top-0 left-0 w-1 h-full bg-zinc-900 opacity-0 group-hover:opacity-100 transition-opacity" />
-      <div className="p-6">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
-          <div className="flex-1">
-            <div className="flex flex-wrap gap-2 mb-3">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${getBadgeColor(job.department)}`}>
+    <div className={`group bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${isOpen ? 'border-blue-500 shadow-lg ring-1 ring-blue-500/20' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'}`}>
+      <div className="p-6 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+          
+          {/* Left Side: Info */}
+          <div className="flex-1 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset ${getBadgeStyles(job.department)}`}>
                 {job.department}
               </span>
-              {job.location && (
-                 <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gray-50 text-gray-600 border border-gray-200 flex items-center gap-1">
-                   <MapPin size={10} /> {job.location}
+              {job.gender && job.gender !== 'Any' && (
+                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset flex items-center gap-1 ${job.gender === 'Male' ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20' : 'bg-pink-50 text-pink-700 ring-pink-600/20'}`}>
+                   <User size={10} /> {job.gender} Only
                  </span>
               )}
             </div>
-            <h3 className="text-xl md:text-2xl font-black text-gray-900 group-hover:text-blue-900 transition-colors">
-              {job.title}
-            </h3>
+
+            <div>
+              <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                {job.title}
+              </h3>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1.5 text-sm text-slate-500">
+                <div className="flex items-center gap-1.5">
+                  <Building2 size={14} className="text-slate-400"/>
+                  <span>Durable Fastener Pvt Ltd</span>
+                </div>
+                {job.location && (
+                  <div className="flex items-center gap-1.5">
+                    <MapPin size={14} className="text-slate-400"/>
+                    <span>{job.location}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5">
+                    <Clock size={14} className="text-slate-400"/>
+                    <span>Full Time</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex-shrink-0">
-             <span className="inline-flex items-center gap-1 text-sm font-bold text-green-700 bg-green-50 px-3 py-1 rounded-lg border border-green-100">
-                <IndianRupee size={14} /> {job.salary || 'Best in Industry'}
-             </span>
+
+          {/* Right Side: Salary & Action */}
+          <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-4">
+             {job.salary && (
+               <div className="flex items-center gap-1 text-slate-900 font-bold bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                  <IndianRupee size={16} className="text-slate-500" /> 
+                  <span>{job.salary}</span>
+               </div>
+             )}
+             <div className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+                <ChevronDown size={20} className="text-slate-400" />
+             </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center gap-6 text-sm text-gray-500 mb-6 border-b border-gray-100 pb-4">
-            <div className="flex items-center gap-2"><Briefcase size={16} /> {job.experience || 'Exp. Req'}</div>
-            <div className="flex items-center gap-2"><Clock size={16} /> Full Time</div>
-        </div>
+      {/* Expanded Details */}
+      <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="overflow-hidden">
+          <div className="px-6 pb-6 pt-0 border-t border-slate-100 mt-2">
+            
+            {/* Meta Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Experience</p>
+                    <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                        <Briefcase size={14} className="text-blue-500"/> {job.experience || 'Not Specified'}
+                    </p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Gender</p>
+                    <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                        <Users size={14} className="text-blue-500"/> {job.gender === 'Any' || !job.gender ? 'Male / Female' : `${job.gender}`}
+                    </p>
+                </div>
+                 {/* Add empty/other placeholders if needed for alignment */}
+            </div>
 
-        <button 
-            onClick={() => setIsOpen(!isOpen)} 
-            className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl transition-all text-sm"
-        >
-          <span>{isOpen ? 'Hide Description' : 'View Job Description'}</span>
-          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-
-        {isOpen && (
-          <div className="mt-6 animate-fadeIn">
-            {/* HTML Description Renderer */}
+            {/* Description Content */}
             <div 
-                className="prose prose-sm prose-zinc max-w-none 
-                prose-headings:font-bold prose-headings:text-gray-900 prose-headings:mt-4 prose-headings:mb-2
-                prose-p:text-gray-600 prose-li:text-gray-600 prose-li:my-0
-                prose-strong:text-gray-900" 
+                className="prose prose-sm prose-slate max-w-none 
+                prose-headings:font-bold prose-headings:text-slate-900 prose-a:text-blue-600
+                prose-strong:text-slate-900 prose-li:marker:text-slate-400" 
                 dangerouslySetInnerHTML={{ __html: job.description }} 
             />
             
             {/* CTA */}
-            <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
-              <div>
-                <p className="font-bold text-gray-900 text-sm">Interested in this role?</p>
-                <p className="text-gray-500 text-xs">Direct WhatsApp application.</p>
-              </div>
-              <button onClick={handleApply} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-green-700 hover:shadow-lg transition-all">
-                <Send size={18} /> Apply Now
+            <div className="mt-8 flex items-center justify-end pt-6 border-t border-slate-100">
+              <button onClick={handleApply} className="group relative inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg hover:shadow-blue-500/30">
+                <span>Apply via WhatsApp</span>
+                <Send size={18} className="transition-transform group-hover:translate-x-1" />
               </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
 
-// --- SIDEBAR FILTER COMPONENT ---
+// 2. Stylish Checkbox Filter
 const FilterSection: React.FC<{
   title: string;
-  icon: React.ReactNode;
   options: { label: string; count: number }[];
   selected: string[];
   onChange: (val: string) => void;
-}> = ({ title, icon, options, selected, onChange }) => {
+}> = ({ title, options, selected, onChange }) => {
   if (options.length === 0) return null;
   return (
     <div className="mb-8">
-        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-            {icon} {title}
-        </h4>
-        <div className="space-y-3">
-            {options.map((opt) => (
-                <label key={opt.label} className="flex items-center justify-between cursor-pointer group">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${selected.includes(opt.label) ? 'bg-black border-black' : 'border-gray-300 bg-white group-hover:border-gray-400'}`}>
-                            {selected.includes(opt.label) && <div className="w-2 h-2 bg-white rounded-sm" />}
-                            <input 
-                                type="checkbox" 
-                                className="hidden"
-                                checked={selected.includes(opt.label)}
-                                onChange={() => onChange(opt.label)}
-                            />
+        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">{title}</h4>
+        <div className="space-y-2">
+            {options.map((opt) => {
+                const isSelected = selected.includes(opt.label);
+                return (
+                    <label key={opt.label} className="flex items-center justify-between cursor-pointer group py-1">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded flex items-center justify-center transition-all border ${isSelected ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-300 group-hover:border-slate-400'}`}>
+                                {isSelected && <CheckIcon />}
+                                <input 
+                                    type="checkbox" 
+                                    className="hidden"
+                                    checked={isSelected}
+                                    onChange={() => onChange(opt.label)}
+                                />
+                            </div>
+                            <span className={`text-sm transition-colors ${isSelected ? 'font-semibold text-slate-900' : 'text-slate-600 group-hover:text-slate-900'}`}>
+                                {opt.label}
+                            </span>
                         </div>
-                        <span className={`text-sm transition-colors ${selected.includes(opt.label) ? 'font-bold text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                            {opt.label}
+                        <span className={`text-xs px-2 py-0.5 rounded-full transition-colors ${isSelected ? 'bg-slate-100 text-slate-900 font-bold' : 'bg-slate-50 text-slate-400'}`}>
+                            {opt.count}
                         </span>
-                    </div>
-                    <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                        {opt.count}
-                    </span>
-                </label>
-            ))}
+                    </label>
+                );
+            })}
         </div>
     </div>
   );
 };
+
+// Simple check icon SVG
+const CheckIcon = () => (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
 
 // --- MAIN PAGE ---
 const Careers: React.FC = () => {
@@ -149,6 +198,8 @@ const Careers: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
   const [selectedLocs, setSelectedLocs] = useState<string[]>([]);
+  const [selectedSalaries, setSelectedSalaries] = useState<string[]>([]);
+  const [selectedGenders, setSelectedGenders] = useState<string[]>([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
@@ -156,155 +207,180 @@ const Careers: React.FC = () => {
   }, []);
 
   const fetchJobs = async () => {
-    // 1. Fetch from Supabase
     const { data, error } = await supabase.from('jobs').select('*').order('created_at', { ascending: false });
-    
-    if (!error && data) {
-      setJobs(data);
-    } else {
-        // Fallback or Error handling
-        console.error("Error fetching jobs", error);
-    }
+    if (!error && data) setJobs(data);
     setLoading(false);
   };
 
-  // --- DERIVED DATA FOR FILTER COUNTS ---
-  // We calculate counts based on the *entire* dataset, not the filtered one (usually standard UX)
+  // --- LOGIC (Updated to handle exact location strings) ---
   const filterOptions = useMemo(() => {
     const depts: Record<string, number> = {};
     const locs: Record<string, number> = {};
+    const salaries: Record<string, number> = {};
+    const genders: Record<string, number> = {};
 
     jobs.forEach(job => {
-        // Department Count
         const d = job.department || 'Other';
         depts[d] = (depts[d] || 0) + 1;
 
-        // Location Count (Handle "Rajkot / Surat" scenarios by splitting)
-        // If your DB has "Rajkot" and "Surat" as separate clean fields, simplify this.
-        const lList = job.location ? job.location.split('/').map((s:string) => s.trim()) : ['Remote'];
-        lList.forEach((l: string) => {
-             // Simple cleanup to group "Surat Branch" and "Surat" together if data is messy
-             const cleanL = l.includes('Surat') ? 'Surat' : l.includes('Rajkot') ? 'Rajkot' : l;
-             locs[cleanL] = (locs[cleanL] || 0) + 1;
-        });
+        // Use location exactly as it comes from DB now since we use a Dropdown in Admin
+        const l = job.location || 'Remote';
+        locs[l] = (locs[l] || 0) + 1;
+
+        const g = job.gender || 'Any';
+        genders[g] = (genders[g] || 0) + 1;
+
+        if (job.salary_min || job.salary_max) {
+            const jobMin = job.salary_min || 0;
+            const jobMax = job.salary_max || 9999999;
+            SALARY_RANGES.forEach(range => {
+                if (range.min < jobMax && range.max > jobMin) {
+                    salaries[range.label] = (salaries[range.label] || 0) + 1;
+                }
+            });
+        }
     });
 
     return {
         departments: Object.entries(depts).map(([label, count]) => ({ label, count })).sort((a,b) => b.count - a.count),
         locations: Object.entries(locs).map(([label, count]) => ({ label, count })).sort((a,b) => b.count - a.count),
+        salaries: SALARY_RANGES.map(r => ({ label: r.label, count: salaries[r.label] || 0 })),
+        genders: Object.entries(genders).map(([label, count]) => ({ label, count })).sort((a,b) => b.count - a.count)
     };
   }, [jobs]);
 
-  // --- FILTERING LOGIC ---
   const filteredJobs = jobs.filter(job => {
-    // 1. Search
     const searchContent = `${job.title} ${job.description} ${job.department}`.toLowerCase();
     const matchesSearch = searchContent.includes(searchQuery.toLowerCase());
-
-    // 2. Department (OR Logic: Sales OR HR)
     const matchesDept = selectedDepts.length === 0 || selectedDepts.includes(job.department);
-
-    // 3. Location (OR Logic)
-    // We check if the job.location string contains ANY of the selected locations
-    const matchesLoc = selectedLocs.length === 0 || selectedLocs.some(loc => job.location.includes(loc));
-
-    return matchesSearch && matchesDept && matchesLoc;
+    // Exact match for location since its a dropdown now
+    const matchesLoc = selectedLocs.length === 0 || selectedLocs.includes(job.location); 
+    const matchesGender = selectedGenders.length === 0 || selectedGenders.includes(job.gender || 'Any');
+    
+    let matchesSalary = true;
+    if (selectedSalaries.length > 0) {
+        if (!job.salary_min && !job.salary_max) matchesSalary = false;
+        else {
+            const jobMin = job.salary_min || 0;
+            const jobMax = job.salary_max || 9999999;
+            matchesSalary = selectedSalaries.some(label => {
+                const range = SALARY_RANGES.find(r => r.label === label);
+                if (!range) return false;
+                return range.min < jobMax && range.max > jobMin;
+            });
+        }
+    }
+    return matchesSearch && matchesDept && matchesLoc && matchesSalary && matchesGender;
   });
 
   const toggleFilter = (item: string, list: string[], setList: React.Dispatch<React.SetStateAction<string[]>>) => {
-    if (list.includes(item)) {
-      setList(list.filter(i => i !== item));
-    } else {
-      setList([...list, item]);
-    }
+    if (list.includes(item)) setList(list.filter(i => i !== item));
+    else setList([...list, item]);
   };
 
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedDepts([]);
     setSelectedLocs([]);
+    setSelectedSalaries([]);
+    setSelectedGenders([]);
   };
 
+  const activeFiltersCount = selectedDepts.length + selectedLocs.length + selectedSalaries.length + selectedGenders.length;
+
   return (
-    <div className="bg-white min-h-screen font-sans text-slate-900">
+    <div className="bg-slate-50 min-h-screen font-sans text-slate-900">
       
-      {/* HEADER */}
-      <div className="bg-zinc-900 text-white pt-32 pb-16 px-4">
-          <div className="max-w-7xl mx-auto text-center">
-             <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight">Open Positions</h1>
-             <p className="text-zinc-400 text-lg">Join the Durable Fastener team.</p>
+      {/* PROFESSIONAL HEADER with Subtle Gradient */}
+      <div className="relative bg-slate-900 pt-32 pb-20 px-4 overflow-hidden">
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+          <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+          <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+          
+          <div className="relative max-w-5xl mx-auto text-center z-10">
+             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs font-medium mb-6">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                We are hiring now
+             </div>
+             <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-6 tracking-tight leading-tight">
+               Join <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Durable Fastener</span>
+             </h1>
+             <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+               Discover your next role in Engineering, Manufacturing, Finance, or Sales. Build the future with us.
+             </p>
           </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="max-w-7xl mx-auto px-4 py-12 -mt-10 relative z-20">
         
-        {/* MOBILE FILTER BAR */}
-        <div className="lg:hidden mb-6 sticky top-20 z-20">
-            <div className="flex gap-2">
+        {/* MOBILE FILTER TOGGLE & SEARCH */}
+        <div className="lg:hidden mb-6">
+            <div className="bg-white p-2 rounded-xl shadow-lg border border-slate-200 flex gap-2">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                    <Search className="absolute left-3 top-3.5 text-slate-400" size={18} />
                     <input 
                         type="text" 
-                        placeholder="Search jobs..."
+                        placeholder="Search for roles..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 shadow-lg focus:ring-2 focus:ring-black focus:outline-none"
+                        className="w-full pl-10 pr-4 py-3 rounded-lg bg-slate-50 border-none focus:ring-2 focus:ring-slate-900 placeholder:text-slate-400 font-medium"
                     />
                 </div>
                 <button 
                     onClick={() => setShowMobileFilters(!showMobileFilters)}
-                    className={`p-3 rounded-xl border shadow-lg flex items-center justify-center ${selectedDepts.length + selectedLocs.length > 0 ? 'bg-black text-white border-black' : 'bg-white border-gray-200 text-gray-700'}`}
+                    className={`p-3 rounded-lg flex items-center justify-center transition-colors ${activeFiltersCount > 0 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}
                 >
                     <Filter size={20} />
-                    {(selectedDepts.length + selectedLocs.length > 0) && 
-                        <span className="ml-2 text-xs font-bold bg-white text-black px-1.5 py-0.5 rounded-full">{selectedDepts.length + selectedLocs.length}</span>
-                    }
+                    {activeFiltersCount > 0 && <span className="ml-2 text-xs font-bold bg-white text-slate-900 px-1.5 py-0.5 rounded-full">{activeFiltersCount}</span>}
                 </button>
             </div>
         </div>
 
-        {/* LAYOUT GRID */}
-        <div className="flex flex-col lg:flex-row gap-10 items-start">
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
             
-            {/* SIDEBAR (Desktop) */}
+            {/* SIDEBAR (Professional Card Style) */}
             <aside className={`
-                lg:w-64 w-full bg-white lg:block
-                ${showMobileFilters ? 'fixed inset-0 z-50 p-6 overflow-y-auto animate-fadeIn' : 'hidden'}
-                lg:static lg:p-0 lg:z-auto lg:overflow-visible
-            `}>
-                {/* Mobile Close Button */}
+                lg:w-72 w-full flex-shrink-0
+                ${showMobileFilters ? 'fixed inset-0 z-50 bg-white p-6 overflow-y-auto animate-fadeIn' : 'hidden lg:block'}
+                lg:sticky lg:top-24 lg:z-auto
+            `}>                
+                {/* Mobile Header */}
                 <div className="lg:hidden flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Filters</h2>
-                    <button onClick={() => setShowMobileFilters(false)} className="p-2 bg-gray-100 rounded-full"><X size={20}/></button>
+                    <h2 className="text-2xl font-bold text-slate-900">Filters</h2>
+                    <button onClick={() => setShowMobileFilters(false)} className="p-2 bg-slate-100 rounded-full"><X size={20}/></button>
                 </div>
 
-                <div className="lg:sticky lg:top-24 space-y-8">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-8">
                     {/* Desktop Search */}
                     <div className="relative hidden lg:block">
-                        <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+                        <Search className="absolute left-3 top-3 text-slate-400" size={16} />
                         <input 
                             type="text" 
                             placeholder="Keyword search..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-black focus:outline-none text-sm"
+                            className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm font-medium"
                         />
                     </div>
 
-                    {/* Active Filters Summary */}
-                    {(selectedDepts.length > 0 || selectedLocs.length > 0) && (
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-xs font-bold text-gray-500 uppercase">Active Filters</span>
-                                <button onClick={clearFilters} className="text-xs font-bold text-red-600 hover:underline">Clear All</button>
+                    {/* Active Filters */}
+                    {activeFiltersCount > 0 && (
+                        <div className="pb-6 border-b border-slate-100">
+                            <div className="flex justify-between items-center mb-3">
+                                <span className="text-xs font-bold text-slate-900">Active Filters ({activeFiltersCount})</span>
+                                <button onClick={clearFilters} className="text-xs font-semibold text-blue-600 hover:text-blue-700">Clear All</button>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {[...selectedDepts, ...selectedLocs].map(f => (
-                                    <span key={f} className="text-xs bg-white border border-gray-200 px-2 py-1 rounded-md text-gray-700 flex items-center gap-1 shadow-sm">
-                                        {f} 
-                                        <X size={10} className="cursor-pointer hover:text-red-500" onClick={() => {
+                                {[...selectedDepts, ...selectedLocs, ...selectedSalaries, ...selectedGenders].map(f => (
+                                    <span key={f} className="inline-flex items-center gap-1 text-[10px] uppercase font-bold bg-slate-900 text-white px-2 py-1 rounded">
+                                        {f} <X size={10} className="cursor-pointer opacity-75 hover:opacity-100" onClick={() => {
                                             if(selectedDepts.includes(f)) toggleFilter(f, selectedDepts, setSelectedDepts);
-                                            else toggleFilter(f, selectedLocs, setSelectedLocs);
+                                            else if(selectedLocs.includes(f)) toggleFilter(f, selectedLocs, setSelectedLocs);
+                                            else if(selectedGenders.includes(f)) toggleFilter(f, selectedGenders, setSelectedGenders);
+                                            else toggleFilter(f, selectedSalaries, setSelectedSalaries);
                                         }}/>
                                     </span>
                                 ))}
@@ -312,54 +388,48 @@ const Careers: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Filters */}
-                    <FilterSection 
-                        title="Department" 
-                        icon={<Briefcase size={14}/>}
-                        options={filterOptions.departments} 
-                        selected={selectedDepts} 
-                        onChange={(val) => toggleFilter(val, selectedDepts, setSelectedDepts)} 
-                    />
+                    <FilterSection title="Gender" options={filterOptions.genders} selected={selectedGenders} onChange={(val) => toggleFilter(val, selectedGenders, setSelectedGenders)} />
+                    <FilterSection title="Location" options={filterOptions.locations} selected={selectedLocs} onChange={(val) => toggleFilter(val, selectedLocs, setSelectedLocs)} />
+                    <FilterSection title="Department" options={filterOptions.departments} selected={selectedDepts} onChange={(val) => toggleFilter(val, selectedDepts, setSelectedDepts)} />
+                    <FilterSection title="Monthly Salary" options={filterOptions.salaries} selected={selectedSalaries} onChange={(val) => toggleFilter(val, selectedSalaries, setSelectedSalaries)} />
 
-                    <FilterSection 
-                        title="Location" 
-                        icon={<MapPin size={14}/>}
-                        options={filterOptions.locations} 
-                        selected={selectedLocs} 
-                        onChange={(val) => toggleFilter(val, selectedLocs, setSelectedLocs)} 
-                    />
-
-                     {/* Mobile Apply Button */}
                      <div className="lg:hidden mt-8">
-                        <button onClick={() => setShowMobileFilters(false)} className="w-full bg-black text-white font-bold py-3 rounded-xl">
-                            Show {filteredJobs.length} Results
+                        <button onClick={() => setShowMobileFilters(false)} className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg">
+                            Show {filteredJobs.length} Jobs
                         </button>
                      </div>
                 </div>
             </aside>
 
             {/* JOB LIST AREA */}
-            <main className="flex-1 w-full">
-                <div className="flex justify-between items-end mb-6 border-b border-gray-100 pb-4">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">All Jobs</h2>
-                        <p className="text-sm text-gray-500">Find the perfect role for you</p>
-                    </div>
-                    <span className="text-sm font-bold bg-black text-white px-3 py-1 rounded-full">{filteredJobs.length}</span>
+            <main className="flex-1 w-full min-h-[500px]">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        Open Positions 
+                        <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">{filteredJobs.length}</span>
+                    </h2>
                 </div>
 
                 {loading ? (
-                    <div className="py-20 text-center text-gray-400 animate-pulse">Loading positions...</div>
+                    <div className="space-y-4">
+                        {[1,2,3].map(i => (
+                            <div key={i} className="bg-white h-40 rounded-2xl border border-slate-200 animate-pulse"></div>
+                        ))}
+                    </div>
                 ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                         {filteredJobs.length > 0 ? (
                             filteredJobs.map(job => <JobCard key={job.id} job={job} />)
                         ) : (
-                            <div className="text-center py-20 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                                <Briefcase className="mx-auto text-gray-300 mb-4" size={48} />
-                                <h3 className="text-lg font-bold text-gray-900">No jobs found</h3>
-                                <p className="text-gray-500">Try changing your filters or search terms.</p>
-                                <button onClick={clearFilters} className="mt-4 text-sm font-bold text-blue-600 hover:underline">Clear Filters</button>
+                            <div className="text-center py-24 bg-white rounded-2xl border border-dashed border-slate-300">
+                                <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Search className="text-slate-400" size={24} />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900">No jobs found</h3>
+                                <p className="text-slate-500 max-w-xs mx-auto mt-2">We couldn't find any positions matching your filters. Try adjusting them.</p>
+                                <button onClick={clearFilters} className="mt-6 text-sm font-bold text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1 mx-auto">
+                                    Clear all filters <ArrowRight size={14}/>
+                                </button>
                             </div>
                         )}
                     </div>

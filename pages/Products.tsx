@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-// Import the new Creative Loader
 import CreativeLoader from '../components/CreativeLoader'; 
 import { Product } from '../types';
 import {
@@ -120,8 +119,6 @@ const Products: React.FC = () => {
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
-        // 🔥 This TIMEOUT creates the "Industrial Lag" feel
-        // This ensures your animation plays for at least 2.5 seconds
         setTimeout(() => {
             setLoading(false);
         }, 2500); 
@@ -201,15 +198,14 @@ const Products: React.FC = () => {
     currentPage * itemsPerPage
   );
 
-  // 🔥 3. FULL SCREEN PRELOADER
-  // Swapped Preloader for CreativeLoader here!
   if (loading) {
     return <CreativeLoader />;
   }
 
   // --- MAIN RENDER ---
   return (
-    <div className="bg-gray-50 min-h-screen font-sans text-gray-800">
+    // FIX 1: Added pt-20 (or pt-24) to create space for your fixed navbar
+    <div className="bg-gray-50 min-h-screen font-sans text-gray-800 pt-24">
       
       {/* HEADER */}
       <div className="bg-[#1a1a1a] text-white py-16 relative overflow-hidden">
@@ -242,7 +238,8 @@ const Products: React.FC = () => {
           
           {/* ================= SIDEBAR ================= */}
           <aside className="w-full lg:w-[280px] flex-shrink-0">
-            <div className="sticky top-24 space-y-6">
+            {/* FIX 2: Increased sticky top from top-24 to top-28 or top-32 to account for the navbar */}
+            <div className="sticky top-32 space-y-6">
               
               {/* Search */}
               <div className="relative group">

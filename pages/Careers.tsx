@@ -27,23 +27,44 @@ const SALARY_RANGES = [
 // --- COMPONENTS ---
 
 // 1. Polished Job Card
+// 1. Polished Job Card
 const JobCard: React.FC<{ job: any }> = ({ job }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleApply = (e: React.MouseEvent) => {
     e.preventDefault();
+    
+    // --- STEP 1: Apna Company ka WhatsApp Number yahan dalein (Country code ke saath, bina + ke) ---
     const phoneNumber = "919876543210"; 
+    
+    // --- STEP 2: Message Format ---
     const message = `Hello, I am interested in the position of *${job.title}* at Durable Fastener.`;
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const url = isMobile 
-      ? `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`
-      : `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    
+    // --- STEP 3: Detect Mobile vs PC ---
+    // Ye check karta hai ki user Android ya iOS device par hai kya
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    // --- STEP 4: URL Set Karna ---
+    let url = '';
+    
+    if (isMobile) {
+        // Mobile ke liye: Ye seedha WhatsApp App kholne ki koshish karega
+        url = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    } else {
+        // Desktop ke liye: Ye seedha WhatsApp Web interface kholega
+        url = `https://web.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    }
+
+    // New Tab mein open karein
     window.open(url, '_blank');
   };
 
   return (
     <div className={`group bg-white rounded-2xl border transition-all duration-300 overflow-hidden ${isOpen ? 'border-blue-500 shadow-lg ring-1 ring-blue-500/20' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'}`}>
       <div className="p-6 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+        {/* ... baaki ka same design code ... */}
+        
+        {/* Main Card Content (Header) */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
           
           {/* Left Side: Info */}
@@ -52,9 +73,17 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset ${getBadgeStyles(job.department)}`}>
                 {job.department}
               </span>
-              {job.gender && job.gender !== 'Any' && (
-                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset flex items-center gap-1 ${job.gender === 'Male' ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20' : 'bg-pink-50 text-pink-700 ring-pink-600/20'}`}>
-                   <User size={10} /> {job.gender} Only
+
+              {job.gender && (
+                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset flex items-center gap-1 
+                    ${job.gender === 'Male' 
+                        ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20' 
+                        : job.gender === 'Female' 
+                            ? 'bg-pink-50 text-pink-700 ring-pink-600/20'
+                            : 'bg-slate-100 text-slate-600 ring-slate-500/20' 
+                    }`}>
+                    {job.gender === 'Any' ? <Users size={10} /> : <User size={10} />}
+                    {job.gender === 'Any' ? 'Male / Female' : `${job.gender} Only`}
                  </span>
               )}
             </div>
@@ -113,10 +142,10 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Gender</p>
                     <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                        <Users size={14} className="text-blue-500"/> {job.gender === 'Any' || !job.gender ? 'Male / Female' : `${job.gender}`}
+                        <Users size={14} className="text-blue-500"/> 
+                        {job.gender === 'Any' || !job.gender ? 'Male / Female' : `${job.gender} Only`}
                     </p>
                 </div>
-                 {/* Add empty/other placeholders if needed for alignment */}
             </div>
 
             {/* Description Content */}
@@ -127,7 +156,7 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
                 dangerouslySetInnerHTML={{ __html: job.description }} 
             />
             
-            {/* CTA */}
+            {/* CTA Button - Isme onClick event set hai */}
             <div className="mt-8 flex items-center justify-end pt-6 border-t border-slate-100">
               <button onClick={handleApply} className="group relative inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg hover:shadow-blue-500/30">
                 <span>Apply via WhatsApp</span>
@@ -140,7 +169,6 @@ const JobCard: React.FC<{ job: any }> = ({ job }) => {
     </div>
   );
 };
-
 // 2. Stylish Checkbox Filter
 const FilterSection: React.FC<{
   title: string;

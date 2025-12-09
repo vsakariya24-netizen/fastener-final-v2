@@ -1,15 +1,141 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate, Link, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, Briefcase, IndianRupee, MapPin, Clock, CheckCircle, GraduationCap, Star, Globe, Code, Plus, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, Briefcase, IndianRupee, Clock, CheckCircle, GraduationCap, Star, Globe, Code, Plus, Trash2, Settings, X, Loader } from 'lucide-react';
 
-// --- TYPE DEFINITION ---
+// --- TYPE DEFINITIONS ---
 interface ListItem {
   title: string;
   detail: string;
 }
 
-// --- SUB-COMPONENT: Dynamic List Input ---
+interface AttributeItem {
+  id: number;
+  value: string;
+}
+
+// --- SUB-COMPONENT 1: Manage Options Modal (From Code 1) ---
+const ManageOptionsModal: React.FC<{
+  category: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ category, onClose, onSuccess }) => {
+  const [items, setItems] = useState<AttributeItem[]>([]);
+  const [newValue, setNewValue] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+
+  // Fetch existing items for this category
+  const fetchItems = async () => {
+    setFetching(true);
+    const { data } = await supabase
+      .from('job_attributes')
+      .select('id, value')
+      .eq('category', category)
+      .order('value');
+    
+    if (data) setItems(data);
+    setFetching(false);
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, [category]);
+
+  // Add New Item
+  const handleAdd = async () => {
+    if (!newValue.trim()) return;
+    setLoading(true);
+    const { error } = await supabase.from('job_attributes').insert([{ category, value: newValue.trim() }]);
+    
+    if (error) alert('Error: ' + error.message);
+    else {
+      setNewValue('');
+      fetchItems(); // Refresh local list
+      onSuccess();  // Refresh parent dropdown
+    }
+    setLoading(false);
+  };
+
+  // Delete Item
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this option?')) return;
+    
+    const { error } = await supabase.from('job_attributes').delete().eq('id', id);
+    
+    if (error) alert('Error: ' + error.message);
+    else {
+      fetchItems(); // Refresh local list
+      onSuccess();  // Refresh parent dropdown
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[80vh]">
+        
+        {/* Header */}
+        <div className="bg-gray-900 p-4 flex justify-between items-center flex-shrink-0">
+          <h3 className="text-white font-bold capitalize flex items-center gap-2">
+            <Settings size={18} className="text-yellow-400"/> Manage {category}s
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
+          
+          {/* Add Section */}
+          <div className="flex gap-2 mb-6">
+            <input 
+              autoFocus
+              className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:outline-none text-sm"
+              placeholder={`Add new ${category}...`}
+              value={newValue}
+              onChange={(e) => setNewValue(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+            />
+            <button 
+              onClick={handleAdd} 
+              disabled={loading}
+              className="bg-yellow-400 hover:bg-yellow-500 text-black px-4 rounded-lg font-bold transition-colors"
+            >
+              {loading ? <Loader size={16} className="animate-spin"/> : <Plus size={20}/>}
+            </button>
+          </div>
+
+          {/* List Section */}
+          {fetching ? (
+            <div className="text-center py-4 text-gray-400">Loading list...</div>
+          ) : (
+            <div className="space-y-2">
+              {items.length === 0 ? (
+                <p className="text-center text-gray-400 text-sm italic">No options found. Add one above!</p>
+              ) : (
+                items.map(item => (
+                  <div key={item.id} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-100 rounded-lg group hover:border-gray-300 transition-all">
+                    <span className="font-medium text-gray-700 text-sm">{item.value}</span>
+                    <button 
+                      onClick={() => handleDelete(item.id)}
+                      className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- SUB-COMPONENT 2: Dynamic List Input ---
 const ListInputSection: React.FC<{
   title: string;
   icon: React.ReactNode;
@@ -98,14 +224,24 @@ const AddJob: React.FC = () => {
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
+  
+  // Modal State
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+
+  // Dropdown Options State
+  const [dropdownOptions, setDropdownOptions] = useState({
+    departments: [] as string[],
+    locations: [] as string[],
+    types: [] as string[]
+  });
 
   // --- STATE ---
   const [formData, setFormData] = useState({
     title: '',
-    department: 'Accounts & Finance',
-    type: 'Full-time, On-site',
+    department: '', // Empty by default now (dynamic)
+    type: '',       // Empty by default now (dynamic)
     gender: 'Any', 
-    location_short: 'RAJKOT', // Default CAPITAL
+    location_short: '', // Empty by default now (dynamic)
     salary: '',      
     salary_min: '',  
     salary_max: '',  
@@ -121,7 +257,23 @@ const AddJob: React.FC = () => {
     benefits: [{ title: '', detail: '' }] as ListItem[]
   });
 
-  // --- FETCH DATA (EDIT MODE) ---
+  // --- 1. FETCH ATTRIBUTES (Dropdown Data) ---
+  const fetchAttributes = async () => {
+    const { data } = await supabase.from('job_attributes').select('*').order('value');
+    if (data) {
+      setDropdownOptions({
+        departments: data.filter(i => i.category === 'department').map(i => i.value),
+        locations: data.filter(i => i.category === 'location').map(i => i.value),
+        types: data.filter(i => i.category === 'type').map(i => i.value),
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchAttributes();
+  }, []);
+
+  // --- 2. FETCH JOB DATA (EDIT MODE) ---
   useEffect(() => {
     if (isEditMode && id) {
       fetchJobData(id);
@@ -142,19 +294,28 @@ const AddJob: React.FC = () => {
       const parser = new DOMParser();
       const doc = parser.parseFromString(data.description || '', 'text/html');
 
-      const getTextByHeader = (keyword: string, tagType = 'h4') => {
-        const headers = Array.from(doc.querySelectorAll(tagType));
-        const targetHeader = headers.find(h => h.textContent?.includes(keyword));
-        return targetHeader?.nextElementSibling?.textContent?.trim() || '';
+      // Helper to handle multiple header types (h3, h4, h5, strong)
+      const getTextByHeader = (keyword: string) => {
+        const headers = Array.from(doc.querySelectorAll('h3, h4, h5, strong')); 
+        const target = headers.find(h => h.textContent?.toLowerCase().includes(keyword.toLowerCase()));
+        
+        let next = target?.nextElementSibling;
+        if (next && next.tagName === 'P') return next.textContent?.trim() || '';
+        return target?.nextSibling?.textContent?.trim() || '';
       };
 
       const getListByHeader = (keyword: string): ListItem[] => {
-        const headers = Array.from(doc.querySelectorAll('h3'));
-        const targetHeader = headers.find(h => h.textContent?.includes(keyword));
+        const headers = Array.from(doc.querySelectorAll('h3, h4, h5, strong'));
+        const targetHeader = headers.find(h => h.textContent?.toLowerCase().includes(keyword.toLowerCase()));
         
-        let nextElem = targetHeader?.nextElementSibling;
-        while (nextElem && nextElem.tagName !== 'UL') {
+        if (!targetHeader) return [{ title: '', detail: '' }];
+
+        let nextElem = targetHeader.nextElementSibling;
+        let attempts = 0;
+        // Search next 5 siblings to find the UL
+        while (nextElem && nextElem.tagName !== 'UL' && attempts < 5) {
           nextElem = nextElem.nextElementSibling;
+          attempts++;
         }
 
         if (nextElem && nextElem.tagName === 'UL') {
@@ -162,21 +323,15 @@ const AddJob: React.FC = () => {
             const strongTag = li.querySelector('strong');
             if (strongTag) {
               const title = strongTag.textContent?.replace(/:$/, '').trim() || '';
-              let detail = '';
-              const nodes = Array.from(li.childNodes);
-              const textNode = nodes.find(n => n.nodeType === Node.TEXT_NODE && n.textContent?.trim());
-              const spanNode = li.querySelector('span:not(.bg-gray-400)'); 
-              
-              if (spanNode) {
-                 detail = spanNode.textContent?.replace(title + ':', '').trim() || '';
-              } else if (textNode) {
-                 detail = textNode.textContent?.trim() || '';
-              }
-              
+              const fullText = li.textContent || '';
+              const detail = fullText.replace(strongTag.textContent || '', '').replace(/^:/, '').trim();
               return { title, detail };
             } else {
-              const spanText = li.querySelector('span:last-child')?.textContent || '';
-              return { title: '', detail: spanText || li.textContent?.trim() || '' };
+              const parts = li.textContent?.split(':') || [];
+              if (parts.length > 1) {
+                  return { title: parts[0].trim(), detail: parts.slice(1).join(':').trim() };
+              }
+              return { title: '', detail: li.textContent?.trim() || '' };
             }
           });
         }
@@ -184,29 +339,31 @@ const AddJob: React.FC = () => {
       };
 
       const linkElem = doc.querySelector('a[href*="maps"]');
-      const mapLink = linkElem ? linkElem.getAttribute('href') : '';
-      const introText = doc.querySelector('.job-intro p')?.textContent?.trim() || '';
-      const addressText = getTextByHeader('Office Location', 'h3'); 
+      const introP = doc.querySelector('.job-intro p') || doc.querySelector('p');
 
       setFormData({
         title: data.title,
-        department: data.department,
-        type: data.type,
+        department: data.department || '',
+        type: data.type || '',
         gender: data.gender || 'Any', 
-        location_short: data.location,
-        salary: data.salary,
+        location_short: data.location || '',
+        salary: data.salary || '',
         salary_min: data.salary_min || '',
         salary_max: data.salary_max || '',
-        experience: data.experience,
-        skills: data.skills,
-        intro: introText,
-        working_hours: getTextByHeader('Working Hours'),
-        commitment: getTextByHeader('Commitment'),
-        address: addressText,
-        maps_link: mapLink || '',
-        responsibilities: getListByHeader('Key Responsibilities'),
-        qualifications: getListByHeader('Qualifications'),
-        benefits: getListByHeader('Benefits')
+        experience: data.experience || '',
+        skills: data.skills || '',
+        intro: introP?.textContent?.trim() || '',
+        
+        // Smart matching
+        working_hours: getTextByHeader('Working'),
+        commitment: getTextByHeader('Commitment') || getTextByHeader('Bond'),
+        address: getTextByHeader('Location') || getTextByHeader('Address'),
+        maps_link: linkElem ? linkElem.getAttribute('href') || '' : '',
+        
+        // List matching
+        responsibilities: getListByHeader('Responsibilities'),
+        qualifications: getListByHeader('Qualifications') || getListByHeader('Qualification'),
+        benefits: getListByHeader('Benefits') || getListByHeader('Benefit')
       });
 
     } catch (err) {
@@ -302,18 +459,7 @@ const AddJob: React.FC = () => {
     let error;
     
     if (isEditMode && id) {
-      console.log("Saving Update...", payload);
-      const { error: updateError, data } = await supabase
-        .from('jobs')
-        .update(payload)
-        .eq('id', parseInt(id))
-        .select();
-
-      if (data && data.length === 0) {
-        alert("Update failed. Please check Database Permissions (RLS).");
-        setLoading(false);
-        return;
-      }
+      const { error: updateError } = await supabase.from('jobs').update(payload).eq('id', parseInt(id));
       error = updateError;
     } else {
       const { error: insertError } = await supabase.from('jobs').insert([payload]);
@@ -324,7 +470,7 @@ const AddJob: React.FC = () => {
       console.error(error);
       alert('Error: ' + error.message);
     } else {
-      setTimeout(() => navigate('/admin/jobs'), 500);
+      navigate('/admin/jobs');
     }
     setLoading(false);
   };
@@ -332,7 +478,17 @@ const AddJob: React.FC = () => {
   if (fetching) return <div className="p-10 text-center">Loading job data...</div>;
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div className="max-w-5xl mx-auto p-6 relative">
+      
+      {/* POPUP MODAL (Condition Rendering) */}
+      {activeModal && (
+        <ManageOptionsModal 
+            category={activeModal} 
+            onClose={() => setActiveModal(null)} 
+            onSuccess={fetchAttributes} 
+        />
+      )}
+
       <Link to="/admin/jobs" className="flex items-center gap-2 text-gray-500 mb-6 hover:text-black transition-colors">
         <ArrowLeft size={18} /> Back to Jobs List
       </Link>
@@ -341,7 +497,7 @@ const AddJob: React.FC = () => {
         <div className="bg-gray-900 px-8 py-6 border-b border-gray-800 text-white flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold">{isEditMode ? 'Edit Job' : 'Post New Job'}</h2>
-            <p className="text-gray-400 mt-1">Fill in the details below. Key points will be bolded automatically.</p>
+            <p className="text-gray-400 mt-1">Fill in the details below.</p>
           </div>
           {isEditMode && <span className="bg-yellow-500 text-black px-3 py-1 rounded text-xs font-bold">EDITING</span>}
         </div>
@@ -359,59 +515,66 @@ const AddJob: React.FC = () => {
                 <input required className="input-field text-lg font-semibold" placeholder="e.g. Senior Accountant" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
               </div>
               
+              {/* DYNAMIC DEPARTMENT SELECTOR */}
               <div>
-                 <label className="label">Department</label>
-                 <select className="input-field bg-white" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})}>
-                    <option>Accounts & Finance</option>
-                    <option>Engineering</option>
-                    <option>Manufacturing</option>
-                    <option>Sales & Marketing</option>
-                    <option>HR & Admin</option>
-                    <option>Quality Assurance</option>
-                    <option>Research & Development</option> 
-                    <option>Factory/Warehouse Operations</option> 
-                 </select>
+                  <div className="flex justify-between items-center mb-1">
+                      <label className="label mb-0">Department</label>
+                      <button type="button" onClick={() => setActiveModal('department')} className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline font-bold">
+                        <Settings size={12} /> Manage List
+                      </button>
+                  </div>
+                  <select className="input-field bg-white" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})}>
+                    <option value="">Select Department</option>
+                    {dropdownOptions.departments.map((dept, idx) => <option key={idx} value={dept}>{dept}</option>)}
+                  </select>
+              </div>
+
+              {/* DYNAMIC TYPE SELECTOR */}
+              <div>
+                  <div className="flex justify-between items-center mb-1">
+                      <label className="label mb-0">Job Type</label>
+                      <button type="button" onClick={() => setActiveModal('type')} className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline font-bold">
+                        <Settings size={12} /> Manage List
+                      </button>
+                  </div>
+                  <select className="input-field bg-white" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                     <option value="">Select Type</option>
+                     {dropdownOptions.types.map((type, idx) => <option key={idx} value={type}>{type}</option>)}
+                  </select>
               </div>
 
               <div>
-                 <label className="label">Job Type</label>
-                 <select className="input-field bg-white" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-                    <option>Full-time, On-site</option>
-                    <option>Full-time, Hybrid</option>
-                    <option>Part-time</option>
-                    <option>Contract</option>
-                 </select>
-              </div>
-
-              <div>
-                 <label className="label">Gender Preference</label>
-                 <select className="input-field bg-white" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
+                  <label className="label">Gender Preference</label>
+                  <select className="input-field bg-white" value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})}>
                     <option value="Any">Any (Male or Female)</option>
                     <option value="Male">Male Only</option>
                     <option value="Female">Female Only</option>
-                 </select>
+                  </select>
               </div>
 
-              {/* UPDATED LOCATION SELECTOR - ALL CAPS VALUES */}
+              {/* DYNAMIC LOCATION SELECTOR */}
               <div>
-                 <label className="label">Location (City)</label>
-                 <select className="input-field bg-white" value={formData.location_short} onChange={e => setFormData({...formData, location_short: e.target.value})}>
-                    <option value="RAJKOT">RAJKOT</option>
-                    <option value="SURAT">SURAT</option>
-                    <option value="RAVKI">RAVKI</option>
-                    <option value="RAJKOT / SURAT">RAJKOT / SURAT</option>
-                 </select>
+                  <div className="flex justify-between items-center mb-1">
+                      <label className="label mb-0">Location (City)</label>
+                      <button type="button" onClick={() => setActiveModal('location')} className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline font-bold">
+                        <Settings size={12} /> Manage List
+                      </button>
+                  </div>
+                  <select className="input-field bg-white" value={formData.location_short} onChange={e => setFormData({...formData, location_short: e.target.value})}>
+                    <option value="">Select Location</option>
+                    {dropdownOptions.locations.map((loc, idx) => <option key={idx} value={loc}>{loc}</option>)}
+                  </select>
               </div>
 
               {/* SALARY SECTION */}
               <div>
-                 <label className="label">Salary Display Text</label>
-                 <div className="relative mb-2">
-                   <IndianRupee size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                   <input className="input-field pl-10" placeholder="e.g. ₹15,000 - ₹30,000" value={formData.salary} onChange={e => setFormData({...formData, salary: e.target.value})} />
-                 </div>
-                 
-                 <div className="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                  <label className="label">Salary Display Text</label>
+                  <div className="relative mb-2">
+                    <IndianRupee size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                    <input className="input-field pl-10" placeholder="e.g. ₹15,000 - ₹30,000" value={formData.salary} onChange={e => setFormData({...formData, salary: e.target.value})} />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
                     <div>
                         <label className="text-xs font-bold text-gray-500">Min (Number)</label>
                         <input type="number" className="w-full p-1 text-sm border rounded" placeholder="15000" value={formData.salary_min} onChange={e => setFormData({...formData, salary_min: e.target.value})} />
@@ -420,21 +583,21 @@ const AddJob: React.FC = () => {
                         <label className="text-xs font-bold text-gray-500">Max (Number)</label>
                         <input type="number" className="w-full p-1 text-sm border rounded" placeholder="30000" value={formData.salary_max} onChange={e => setFormData({...formData, salary_max: e.target.value})} />
                     </div>
-                 </div>
-                 <p className="text-[10px] text-gray-400 mt-1">Enter raw numbers for filters (e.g., 15000).</p>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">Enter raw numbers for filters (e.g., 15000).</p>
               </div>
 
               <div>
-                 <label className="label">Experience</label>
-                 <input className="input-field" placeholder="e.g. Min 2 Years" value={formData.experience} onChange={e => setFormData({...formData, experience: e.target.value})} />
+                  <label className="label">Experience</label>
+                  <input className="input-field" placeholder="e.g. Min 2 Years" value={formData.experience} onChange={e => setFormData({...formData, experience: e.target.value})} />
               </div>
 
               <div>
-                 <label className="label">Skills (Comma Separated)</label>
-                 <div className="relative">
-                   <Code size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                   <input className="input-field pl-10" placeholder="e.g. Miracle, GST, Excel" value={formData.skills} onChange={e => setFormData({...formData, skills: e.target.value})} />
-                 </div>
+                  <label className="label">Skills (Comma Separated)</label>
+                  <div className="relative">
+                    <Code size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                    <input className="input-field pl-10" placeholder="e.g. Miracle, GST, Excel" value={formData.skills} onChange={e => setFormData({...formData, skills: e.target.value})} />
+                  </div>
               </div>
             </div>
           </div>

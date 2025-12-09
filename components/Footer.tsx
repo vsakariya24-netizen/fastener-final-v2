@@ -59,7 +59,7 @@ const Footer: React.FC = () => {
             <ul className="space-y-3 text-sm font-medium text-gray-400">
               {[
                 { name: 'Home', path: '/' },
-                { name: 'About Us', path: '/about' },
+                { name: 'About Us', path: '/About' },
                 { name: 'Our Products', path: '/products' },
                 { name: 'Manufacturing', path: '/manufacturing' },
                 { name: 'OEM Platform', path: '/oem-platform' },

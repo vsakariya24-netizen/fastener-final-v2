@@ -449,7 +449,7 @@ const ProductDetail: React.FC = () => {
       </div>
       
       <footer className="bg-white py-10 border-t border-slate-200 text-center text-slate-400 text-sm font-medium" style={fontBody}>
-        <p>&copy; {new Date().getFullYear()} Industrial Solutions Corp. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()}© 2025 Durable Fastener Pvt. Ltd. All rights reserved.</p>
       </footer>
 
       {fullScreenAppImage && (

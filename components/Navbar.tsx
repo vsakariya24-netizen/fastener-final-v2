@@ -89,7 +89,7 @@ const Navbar: React.FC = () => {
           <div className="hidden 2xl:flex flex-1 justify-center items-center gap-2">
             
             {/* Home Link */}
-            <Link to="/" className={`group relative px-5 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${isActive('/') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-black'}`}>
+            <Link to="/Home" className={`group relative px-5 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${isActive('/') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-black'}`}>
                <Home size={18} className={`transition-transform duration-300 ${isActive('/') ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600 group-hover:scale-110'}`} />
                <span>Home</span>
             </Link>

@@ -15,12 +15,11 @@ const BRAND_ACCENT = "amber-500";
 const BRAND_PRIMARY_TEXT = "slate-900";
 const BRAND_SECONDARY_TEXT = "slate-600";
 
-// --- CSS FOR BLUEPRINT GRID BACKGROUND ---
 const blueprintGridStyle = {
-  backgroundColor: '#f8fafc', // slate-50
+  backgroundColor: '#f8fafc', 
   backgroundImage: `
-    linear-gradient(to right, rgba(226, 232, 240, 0.8) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(226, 232, 240, 0.8) 1px, transparent 1px)
+    linear-gradient(to right, rgba(203, 213, 225, 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(203, 213, 225, 0.4) 1px, transparent 1px)
   `,
   backgroundSize: '20px 20px'
 };
@@ -45,7 +44,6 @@ const ProductDetail: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Load Fonts
   useEffect(() => {
     const link = document.createElement('link');
     link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Rajdhani:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap';
@@ -56,7 +54,6 @@ const ProductDetail: React.FC = () => {
 
   useEffect(() => { window.scrollTo(0, 0); }, [slug]);
 
-  // Fetch Data
   useEffect(() => {
     const fetchProduct = async () => {
       setLoading(true);
@@ -87,7 +84,6 @@ const ProductDetail: React.FC = () => {
     fetchProduct();
   }, [slug]);
 
-  // Filtering Logic
   const uniqueDiameters = useMemo(() => {
       if (!product?.variants) return [];
       const dias = new Set(product.variants.map((v: any) => v.diameter).filter(Boolean));
@@ -96,8 +92,22 @@ const ProductDetail: React.FC = () => {
 
   const availableLengths = useMemo(() => {
       if (!product?.variants || !selectedDia) return [];
-      const lengths = new Set(product.variants.filter((v: any) => v.diameter === selectedDia).map((v: any) => v.length).filter(Boolean));
-      return Array.from(lengths).sort(); 
+      
+      const rawLengths = product.variants
+        .filter((v: any) => v.diameter === selectedDia)
+        .map((v: any) => v.length)
+        .filter(Boolean);
+
+      const flatLengths = new Set<string>();
+      rawLengths.forEach((len: string) => {
+        if (len.includes(',')) {
+            len.split(',').map(l => l.trim()).forEach(l => flatLengths.add(l));
+        } else {
+            flatLengths.add(len);
+        }
+      });
+
+      return Array.from(flatLengths).sort((a: any, b: any) => parseInt(a) - parseInt(b)); 
   }, [product, selectedDia]);
 
   useEffect(() => {
@@ -107,7 +117,10 @@ const ProductDetail: React.FC = () => {
 
   const availableFinishes = useMemo(() => {
       if (!product?.variants) return [];
-      const relevantVariants = product.variants.filter((v: any) => v.diameter === selectedDia && v.length === selectedLen);
+      const relevantVariants = product.variants.filter((v: any) => 
+        v.diameter === selectedDia && 
+        (v.length === selectedLen || (v.length && v.length.includes(selectedLen))) 
+      );
       return Array.from(new Set(relevantVariants.map((v: any) => v.finish).filter(Boolean)));
   }, [product, selectedDia, selectedLen]);
 
@@ -133,7 +146,6 @@ const ProductDetail: React.FC = () => {
 
   return (
     <div className="bg-slate-50 min-h-screen pb-24" style={fontBody}>
-      {/* --- HEADER --- */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm bg-opacity-90 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
             <div className="flex items-center text-xs font-bold uppercase tracking-widest text-slate-500" style={fontHeading}>
@@ -143,7 +155,6 @@ const ProductDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* --- HERO SECTION --- */}
       <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
           <div className="lg:col-span-7 flex flex-col gap-8">
@@ -151,9 +162,20 @@ const ProductDetail: React.FC = () => {
                   <div className="absolute top-6 left-6 z-20 px-4 py-1.5 bg-slate-900 text-white text-[11px] font-bold uppercase tracking-widest rounded-md shadow-md" style={fontHeading}>Premium Series</div>
                   <div className="relative z-10 w-full h-full flex items-center justify-center"><MagicZoomClone src={currentImage} zoomSrc={currentImage} alt={product.name} zoomLevel={2.5} glassSize={isMobile ? 120 : 220} className="max-h-full max-w-full object-contain" /></div>
               </div>
-              <div className="flex gap-4 overflow-x-auto py-2 px-1 no-scrollbar justify-center lg:justify-start">
+              
+              <div className="flex gap-4 overflow-x-auto py-4 px-1 no-scrollbar justify-center lg:justify-start">
                 {displayImages.map((img: string, idx: number) => (
-                  <button key={idx} onClick={() => setSelectedImageIndex(idx)} className={`relative w-24 h-24 rounded-xl bg-white overflow-hidden p-3 border-2 transition-all ${selectedImageIndex === idx ? `border-${BRAND_ACCENT} shadow-lg scale-105` : 'border-slate-100 opacity-70 hover:opacity-100'}`}><img src={img} className="w-full h-full object-contain" alt="thumbnail" /></button>
+                  <button 
+                    key={idx} 
+                    onClick={() => setSelectedImageIndex(idx)} 
+                    className={`relative w-24 h-24 rounded-xl bg-white overflow-hidden p-2 border transition-all duration-300 ${
+                        selectedImageIndex === idx 
+                        ? `border-${BRAND_ACCENT} ring-2 ring-offset-2 ring-${BRAND_ACCENT} shadow-lg scale-105 opacity-100` 
+                        : 'border-slate-200 opacity-60 hover:opacity-100 hover:border-slate-300'
+                    }`}
+                  >
+                    <img src={img} className="w-full h-full object-contain" alt="thumbnail" />
+                  </button>
                 ))}
               </div>
           </div>
@@ -161,22 +183,122 @@ const ProductDetail: React.FC = () => {
           <div className="lg:col-span-5 flex flex-col h-full sticky top-24 space-y-8">
               <div><h1 className={`text-4xl md:text-5xl font-extrabold text-${BRAND_PRIMARY_TEXT} tracking-tight uppercase mb-4`} style={fontHeading}>{product.name}</h1><p className={`text-${BRAND_SECONDARY_TEXT} text-lg leading-relaxed font-light border-l-4 border-${BRAND_ACCENT} pl-4`}>{product.short_description}</p></div>
               <hr className="border-slate-200" />
-              <div className="space-y-6">
-                <div className="space-y-3"><span className={`text-slate-500 text-xs font-bold uppercase tracking-widest`} style={fontHeading}>Diameter Select</span><div className="flex flex-wrap gap-2">{uniqueDiameters.map((dia: any) => <button key={dia} onClick={() => setSelectedDia(dia)} className={`min-w-[70px] px-4 py-2.5 text-sm font-bold border-2 rounded-md transition-all ${selectedDia === dia ? `bg-${BRAND_PRIMARY_TEXT} text-white border-${BRAND_PRIMARY_TEXT}` : `bg-white text-slate-600 hover:border-slate-300`}`} style={fontHeading}>{dia}</button>)}</div></div>
-                <div className="space-y-3"><span className={`text-slate-500 text-xs font-bold uppercase tracking-widest`} style={fontHeading}>Length Select</span><div className="flex flex-wrap gap-2">{availableLengths.map((len: any) => <button key={len} onClick={() => setSelectedLen(len)} className={`min-w-[70px] px-4 py-2.5 text-sm font-bold border-2 rounded-md transition-all ${selectedLen === len ? `bg-${BRAND_PRIMARY_TEXT} text-white border-${BRAND_PRIMARY_TEXT}` : `bg-white text-slate-600 hover:border-slate-300`}`} style={fontHeading}>{len}</button>)}</div></div>
-                <div className="space-y-3"><span className={`text-slate-500 text-xs font-bold uppercase tracking-widest`} style={fontHeading}>Finish Options</span><div className="flex flex-wrap gap-2">{availableFinishes.map((finish: any) => <button key={finish} onClick={() => handleFinishClick(finish)} className={`px-5 py-2 text-xs font-bold uppercase tracking-wider border-2 rounded-full transition-all ${activeImageOverride === product.finish_images?.[finish] ? `border-${BRAND_ACCENT} text-${BRAND_PRIMARY_TEXT} bg-amber-50` : `border-slate-300 text-slate-600 hover:border-slate-400`}`} style={fontHeading}>{finish}</button>)}</div></div>
+              
+              {/* --- TECHNICAL SELECTION PANEL --- */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-10">
+                
+                {/* 1. DIAMETER */}
+                <div className="space-y-4">
+                  <span className={`text-slate-500 text-xs font-bold uppercase tracking-widest flex items-center gap-2 pl-1`} style={fontHeading}>
+                      <div className="w-1.5 h-4 bg-amber-500 rounded-sm"></div> Diameter (Ø)
+                  </span>
+                  
+                  <div className="flex flex-wrap gap-4">
+                      {uniqueDiameters.map((dia: any) => {
+                          const isSelected = selectedDia === dia;
+                          return (
+                            <button 
+                                key={dia} 
+                                onClick={() => setSelectedDia(dia)} 
+                                className={`
+                                    relative flex items-center justify-center w-14 h-14 rounded-full transition-all duration-300
+                                    ${isSelected 
+                                        ? `bg-slate-900 text-white shadow-lg scale-110` 
+                                        : `bg-white border border-slate-200 text-slate-500 hover:border-amber-300 hover:text-amber-500`
+                                    }
+                                `}
+                            >
+                                <div className={`absolute inset-1 rounded-full border border-dashed transition-colors ${isSelected ? 'border-slate-600' : 'border-slate-300'}`}></div>
+                                <span className="font-bold text-sm font-rajdhani z-10">{dia}</span>
+                                {isSelected && (
+                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full border-2 border-white flex items-center justify-center shadow-md z-20">
+                                        <Check size={10} strokeWidth={4} className="text-white" />
+                                    </div>
+                                )}
+                            </button>
+                          );
+                      })}
+                  </div>
+                </div>
+
+                {/* 2. LENGTH (Ruler Style - Updated Visibility) */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-end pl-1">
+                      <span className="text-slate-500 text-xs font-bold uppercase tracking-widest flex items-center gap-2" style={fontHeading}>
+                          <div className="w-4 h-1.5 bg-amber-500 rounded-sm"></div> Length (L)
+                      </span>
+                      <span className="text-xs font-mono text-slate-400 font-bold">
+                          {selectedLen ? `${selectedLen}` : ''}
+                      </span>
+                  </div>
+
+                  <div className="relative w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-inner h-28 flex items-center" style={blueprintGridStyle}>
+                      <div className="flex items-end gap-0 px-6 overflow-x-auto w-full h-full no-scrollbar snap-x cursor-grab active:cursor-grabbing items-stretch">
+                          {availableLengths.length > 0 ? availableLengths.map((len: any) => {
+                              const isSelected = selectedLen === len;
+                              return (
+                                  <button 
+                                      key={len} 
+                                      onClick={() => setSelectedLen(len)}
+                                      className={`
+                                          relative flex-shrink-0 flex flex-col items-center justify-end pb-0 min-w-[60px] group transition-all duration-300 snap-center outline-none
+                                      `}
+                                  >
+                                      {/* --- Text Update: text-slate-600 for visible unselected options --- */}
+                                      <span className={`
+                                          mb-auto mt-6 text-sm font-bold font-mono transition-all duration-300 select-none
+                                          ${isSelected 
+                                              ? 'text-amber-500 scale-125 -translate-y-1' 
+                                              : 'text-slate-600 group-hover:text-slate-800' // Darker grey so it is clearly visible
+                                          }
+                                      `}>
+                                          {parseInt(len)}
+                                      </span>
+
+                                      {/* --- Tick Update: bg-slate-400 for visible ticks --- */}
+                                      <div className={`
+                                          w-1 rounded-t-sm transition-all duration-300
+                                          ${isSelected 
+                                              ? 'h-10 bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]' 
+                                              : 'h-5 bg-slate-400 group-hover:bg-slate-500 group-hover:h-6' // Darker and slightly taller default tick
+                                          }
+                                      `}></div>
+
+                                      {isSelected && <div className="absolute bottom-0 w-full h-[3px] bg-amber-500 rounded-t-full"></div>}
+                                  </button>
+                              )
+                          }) : (
+                             <div className="w-full flex items-center justify-center text-xs text-slate-400 italic">Select a Diameter first</div>
+                          )}
+                          <div className="min-w-[40px]"></div>
+                      </div>
+                      
+                      <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent pointer-events-none"></div>
+                      <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
+                  </div>
+                </div>
+
+                {/* 3. FINISH OPTIONS */}
+                <div className="space-y-4">
+                    <span className={`text-slate-500 text-xs font-bold uppercase tracking-widest flex items-center gap-2 pl-1`} style={fontHeading}>
+                         <div className="w-1.5 h-1.5 bg-amber-500 rotate-45 rounded-sm"></div> Finish Options
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                        {availableFinishes.map((finish: any) => (
+                            <button key={finish} onClick={() => handleFinishClick(finish)} className={`px-5 py-2 text-xs font-bold uppercase tracking-wider border rounded-lg transition-all ${activeImageOverride === product.finish_images?.[finish] ? `border-${BRAND_ACCENT} text-${BRAND_PRIMARY_TEXT} bg-amber-50 ring-1 ring-${BRAND_ACCENT}` : `border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:shadow-sm`}`} style={fontHeading}>{finish}</button>
+                        ))}
+                    </div>
+                </div>
               </div>
+
               <div className="pt-4 flex gap-4"><Link to="/contact" className={`flex-1 bg-${BRAND_ACCENT} hover:bg-amber-600 transition-colors text-white text-center py-4 rounded-lg font-bold uppercase tracking-widest shadow-lg flex items-center justify-center gap-3`} style={fontHeading}><ShoppingCart size={20} /> Request Quote</Link><button className={`flex-1 bg-white hover:bg-slate-50 text-${BRAND_PRIMARY_TEXT} border-2 border-slate-200 py-4 rounded-lg font-bold uppercase tracking-widest flex items-center justify-center gap-3 transition-colors`} style={fontHeading}><FileText size={20} /> Spec Sheet</button></div>
           </div>
         </div>
       </div>
 
-      {/* --- DETAILS SECTION --- */}
       <div className="bg-white border-t border-slate-100 relative z-20 shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.05)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 mb-24 items-start">
-            
-            {/* Left: Attributes */}
             <div className="flex flex-col h-full">
               <h3 className={`text-2xl font-bold text-${BRAND_PRIMARY_TEXT} mb-6 flex items-center gap-3 uppercase tracking-wider`} style={fontHeading}>
                 <Settings className={`text-${BRAND_ACCENT}`} /> Product Attributes
@@ -211,7 +333,6 @@ const ProductDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Dimensions */}
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between mb-6">
                 <h3 className={`text-2xl font-bold text-${BRAND_PRIMARY_TEXT} flex items-center gap-3 uppercase tracking-wider`} style={fontHeading}>
@@ -225,7 +346,7 @@ const ProductDetail: React.FC = () => {
                    <div className="absolute bottom-4 left-0 right-0 h-px bg-slate-300 opacity-50 border-t border-dashed border-slate-400"></div>
                    {product.technical_drawing ? (
                        <>
-                         <img src={product.technical_drawing} alt="Dimensional Drawing" className="relative z-10 h-[85%] w-auto object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-105" />
+                         <img src={product.technical_drawing} alt="Dimensional Drawing" className="relative z-10 h-[200%] w-auto object-contain mix-blend-multiply transition-transform duration-500 group-hover:scale-105" />
                          <button className="absolute bottom-3 right-3 bg-white p-2 rounded-lg shadow-sm text-slate-400 hover:text-slate-800 hover:shadow-md transition-all border border-slate-200">
                             <Maximize2 size={18} />
                          </button>
@@ -256,7 +377,6 @@ const ProductDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* --- UPDATED: Industry Applications (3D FLIP CARD) --- */}
           {product.applications && product.applications.length > 0 && (
             <div className="mb-20">
                 <div className="text-center mb-12">
@@ -272,10 +392,7 @@ const ProductDetail: React.FC = () => {
 
                         return (
                           <div key={idx} className="group h-64 [perspective:1000px]">
-                            {/* Inner 3D Container */}
                             <div className="relative h-full w-full transition-all duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
-                                
-                                {/* --- FRONT FACE (Default) --- */}
                                 <div className="absolute inset-0 h-full w-full bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center p-6 [backface-visibility:hidden]">
                                     <div className={`w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center text-${BRAND_ACCENT} mb-4 border border-slate-100`}>
                                         <Check size={28} strokeWidth={2.5} />
@@ -288,13 +405,10 @@ const ProductDetail: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* --- BACK FACE (Hover/Flip) --- */}
                                 <div className="absolute inset-0 h-full w-full bg-slate-800 rounded-2xl overflow-hidden [transform:rotateY(180deg)] [backface-visibility:hidden] relative">
                                     {appImage ? (
                                         <>
                                             <img src={appImage} alt={appName} className="h-full w-full object-cover opacity-60 group-hover:opacity-100 transition-opacity duration-500 group-hover:scale-110" />
-                                            
-                                            {/* Maximize Button */}
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation(); 
@@ -306,8 +420,6 @@ const ProductDetail: React.FC = () => {
                                             >
                                                 <Maximize2 size={16} />
                                             </button>
-
-                                            {/* Gradient Overlay */}
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 pointer-events-none">
                                                 <span className="text-white text-xs font-bold uppercase tracking-widest mb-1 opacity-80">{appName}</span>
                                                 <div className="pointer-events-auto">
@@ -340,13 +452,11 @@ const ProductDetail: React.FC = () => {
         <p>&copy; {new Date().getFullYear()} Industrial Solutions Corp. All rights reserved.</p>
       </footer>
 
-      {/* --- NEW: Full Screen Image Modal (Updated for visibility) --- */}
       {fullScreenAppImage && (
         <div 
             className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300"
             onClick={() => setFullScreenAppImage(null)}
         >
-            {/* Close Button - Updated Style & Z-Index */}
             <button 
                 className="absolute top-6 right-6 z-[10000] bg-white text-slate-900 rounded-full p-2 hover:scale-110 transition-all shadow-xl hover:bg-slate-200"
                 onClick={(e) => {
@@ -356,8 +466,6 @@ const ProductDetail: React.FC = () => {
             >
                 <X size={32} strokeWidth={3} />
             </button>
-
-            {/* Image */}
             <img 
                 src={fullScreenAppImage} 
                 alt="Full View" 
@@ -370,7 +478,6 @@ const ProductDetail: React.FC = () => {
   );
 };
 
-// --- HELPER COMPONENTS ---
 const SimpleSpecRow: React.FC<{label: string, value: string}> = ({label, value}) => (
     <div className="grid grid-cols-[140px_1fr] px-6 py-4 hover:bg-slate-50 transition-colors items-center">
         <div className="text-slate-400 text-xs font-bold uppercase tracking-widest">{label}</div>

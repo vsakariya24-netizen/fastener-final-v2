@@ -338,7 +338,7 @@ const LifeAtDurable: React.FC = () => {
             <div className="flex flex-wrap justify-center gap-4 max-w-5xl mx-auto">
                {[
                   "🚀 Fast Promotion Cycles", "💻 Digital First", "🌎 Remote Friendly", 
-                  "🎨 Creative Freedom", "🧠 Mental Health Leaves", "🍕 Free Food",
+                  "🎨 Creative Freedom", "🧠 Mental Health Leaves", "⏰ Flexible Hours",
                   "🔥 Purpose Driven", "✅ Respect", "📈 Limitless Growth"
                ].map((tag, i) => (
                   <motion.div 
@@ -423,5 +423,6 @@ const LifeAtDurable: React.FC = () => {
     </div>
   );
 };
+
 
 export default LifeAtDurable;

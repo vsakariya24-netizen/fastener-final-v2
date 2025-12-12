@@ -17,6 +17,7 @@ import OEMPlatform from './pages/OEMPlatform';
 import Blog from './pages/Blog';
 import Careers from './pages/Careers';
 import BlogDetail from './pages/BlogDetail';
+import AdminLifeGallery from './pages/Admin/AdminLifeGallery';
 
 // Admin Components
 import AdminLogin from './pages/Admin/Login';
@@ -30,6 +31,7 @@ import AddBlog from './pages/Admin/AddBlog';
 import BlogList from './pages/Admin/BlogList';
 import ManageCategories from './pages/Admin/ManageCategories';
 import LifeAtDurable from './pages/LifeAtDurable';
+import AdminSiteContent from './pages/Admin/AdminSiteContent';
 
 // --- 1. ADD THIS IMPORT ---
 import AddJob from './pages/Admin/AddJob'; 
@@ -66,6 +68,7 @@ const App: React.FC = () => {
              <Route path="/life-at-durable" element={<><Navbar /><div className="flex flex-col min-h-screen"><main className="flex-grow pt-16"><LifeAtDurable /></main><Footer /></div></>} />
             {/* --- Admin Login --- */}
             <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="life-gallery" element={<AdminLifeGallery />} />
             
             {/* --- Secure Admin Panel --- */}
             <Route element={<ProtectedRoute />}>
@@ -78,7 +81,9 @@ const App: React.FC = () => {
                 <Route path="products/new" element={<AddProduct />} />
                 <Route path="products/edit/:id" element={<AddProduct />} />
                 <Route path="categories" element={<ManageCategories />} />
+                <Route path="site-content" element={<AdminSiteContent />} />
                 <Route path="enquiries" element={<Enquiries />} />
+                <Route path="life-gallery" element={<AdminLifeGallery />} />
                 
                 {/* --- JOBS ROUTES --- */}
                 <Route path="jobs" element={<JobsList />} />
@@ -106,4 +111,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default App;       

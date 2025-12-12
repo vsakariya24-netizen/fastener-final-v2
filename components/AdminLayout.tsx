@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Briefcase, MessageSquare, LogOut, FileText } from 'lucide-react';
+// 👇 1. Yahan 'Camera' icon add karein
+import { LayoutDashboard, Package, Briefcase, MessageSquare, LogOut, FileText, Image, Camera, Layers } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const AdminLayout = () => {
@@ -23,7 +24,22 @@ const AdminLayout = () => {
       label: 'Product Manager', 
       icon: <Package size={20} /> 
     },
-    // 👇 NEW BLOG MANAGER LINK ADDED HERE
+    { 
+      path: '/admin/categories', 
+      label: 'Categories', 
+      icon: <Layers size={20} /> 
+    },
+    { 
+      path: '/admin/site-content', 
+      label: 'Home Page Images', 
+      icon: <Image size={20} /> 
+    },
+    // 👇 2. YEH NAYA LINK ADD KAREIN (Yahan se sidebar mein dikhega)
+    { 
+      path: '/admin/life-gallery', 
+      label: 'Life @ Durable', 
+      icon: <Camera size={20} /> 
+    },
     { 
       path: '/admin/blogs', 
       label: 'Blog Manager', 
@@ -54,7 +70,7 @@ const AdminLayout = () => {
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 py-6 px-4 space-y-2">
+        <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto"> {/* Added overflow-y-auto incase list is long */}
           {menuItems.map((item) => (
             <NavLink
               key={item.path}

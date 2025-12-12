@@ -24,6 +24,103 @@ const blueprintGridStyle = {
   backgroundSize: '20px 20px'
 };
 
+// --- NEW COMPONENT: Technical Blueprint Screw ---
+// This component now accurately represents the CSK head and the wireframe/solid style from your images.
+const CleanScrew = ({ lengthMm, isSelected }: { lengthMm: number, isSelected: boolean }) => {
+  // CONFIGURATION
+  const scaleMultiplier = 2.8; // How much pixel height per mm
+  const headHeight = 10;       // Height of the CSK head part
+  const tipHeight = 6;         // Height of the pointy tip
+  const totalWidth = 32;       // Total width of the SVG canvas
+  
+  const bodyHeight = lengthMm * scaleMultiplier; 
+  const totalHeight = headHeight + bodyHeight + tipHeight;
+
+  return (
+    <div 
+      className="flex flex-col items-center justify-start transition-all duration-300 ease-out" 
+      style={{ height: `${totalHeight}px` }}
+    >
+      <svg 
+        width={totalWidth} 
+        height={totalHeight} 
+        viewBox={`0 0 ${totalWidth} ${totalHeight}`} 
+        className="overflow-visible"
+      >
+        <defs>
+          {/* DEFINING THE HATCH PATTERN (The "Technical Drawing" Look) */}
+          {/* A unique ID is needed per screw to avoid pattern conflicts */}
+          <pattern 
+            id={`techHatch-${lengthMm}`} 
+            patternUnits="userSpaceOnUse" 
+            width="4" 
+            height="4" 
+            patternTransform="rotate(45)"
+          >
+            <line x1="0" y1="0" x2="0" y2="4" stroke="#94a3b8" strokeWidth="1" />
+          </pattern>
+        </defs>
+
+        <g className="transition-all duration-300">
+            {/* 1. CSK SCREW HEAD (Trapezoid Shape) */}
+            <path 
+                d={`M2,0 L${totalWidth-2},0 L${totalWidth-8},${headHeight} L8,${headHeight} Z`} 
+                className={`transition-colors duration-300 ${
+                    isSelected 
+                    ? 'fill-amber-500 stroke-amber-600' 
+                    : 'fill-white stroke-slate-400'
+                }`}
+                strokeWidth="1.5"
+            />
+            {/* Head Detail Lines (Top/Side view hint) */}
+            <line x1="2" y1="0" x2="2" y2="2" stroke={isSelected ? "#b45309" : "#cbd5e1"} strokeWidth="1" />
+            <line x1={totalWidth-2} y1="0" x2={totalWidth-2} y2="2" stroke={isSelected ? "#b45309" : "#cbd5e1"} strokeWidth="1" />
+
+            {/* 2. SCREW BODY (Main Shaft) */}
+            <rect 
+                x={totalWidth/2 - 5} 
+                y={headHeight} 
+                width="10" 
+                height={bodyHeight} 
+                className={`transition-colors duration-300 ${
+                    isSelected 
+                    ? 'fill-amber-500 stroke-amber-600' 
+                    : `fill-[url(#techHatch-${lengthMm})] stroke-slate-400` // Apply Pattern here
+                }`}
+                strokeWidth="1.5"
+            />
+
+            {/* 3. SCREW TIP (Pointy) */}
+            <path 
+                d={`
+                    M${totalWidth/2 - 5},${headHeight + bodyHeight} 
+                    L${totalWidth/2 + 5},${headHeight + bodyHeight} 
+                    L${totalWidth/2},${headHeight + bodyHeight + tipHeight} 
+                    Z
+                `}
+                className={`transition-colors duration-300 ${
+                    isSelected 
+                    ? 'fill-amber-500 stroke-amber-600' 
+                    : 'fill-white stroke-slate-400'
+                }`}
+                strokeWidth="1.5"
+            />
+            
+            {/* 4. GLOSSY HIGHLIGHT (Only visible when selected solid screw) */}
+            {isSelected && (
+                <path 
+                    d={`M${totalWidth/2 - 2},${headHeight + 4} L${totalWidth/2 - 2},${headHeight + bodyHeight - 4}`} 
+                    stroke="rgba(255,255,255,0.4)" 
+                    strokeWidth="2" 
+                    strokeLinecap="round"
+                />
+            )}
+        </g>
+      </svg>
+    </div>
+  );
+};
+
 const ProductDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const [product, setProduct] = useState<any | null>(null);
@@ -221,67 +318,74 @@ const ProductDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 2. LENGTH (Ruler Style - Updated Visibility) */}
+                {/* 2. LENGTH (L) - The "Staircase" Sequence Layout */}
                 <div className="space-y-4">
                   <div className="flex justify-between items-end pl-1">
                       <span className="text-slate-500 text-xs font-bold uppercase tracking-widest flex items-center gap-2" style={fontHeading}>
                           <div className="w-4 h-1.5 bg-amber-500 rounded-sm"></div> Length (L)
                       </span>
                       <span className="text-xs font-mono text-slate-400 font-bold">
-                          {selectedLen ? `${selectedLen}` : ''}
+                          {selectedLen ? `${selectedLen} mm` : ''}
                       </span>
                   </div>
 
-                  <div className="relative w-full bg-white border border-slate-200 rounded-xl overflow-hidden shadow-inner h-28 flex items-center" style={blueprintGridStyle}>
-                      <div className="flex items-end gap-0 px-6 overflow-x-auto w-full h-full no-scrollbar snap-x cursor-grab active:cursor-grabbing items-stretch">
+                  {/* Container: ITEMS-START creates the "Hanging" effect from the top */}
+                  <div className="relative w-full bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-inner h-64 flex items-start select-none" style={blueprintGridStyle}>
+                      
+                      {/* Scrollable Area */}
+                      <div className="flex items-start gap-1 px-6 overflow-x-auto w-full h-full no-scrollbar snap-x cursor-grab active:cursor-grabbing pt-6 pb-4">
                           {availableLengths.length > 0 ? availableLengths.map((len: any) => {
                               const isSelected = selectedLen === len;
+                              const numericLen = parseInt(len);
+                              
                               return (
                                   <button 
                                       key={len} 
                                       onClick={() => setSelectedLen(len)}
-                                      className={`
-                                          relative flex-shrink-0 flex flex-col items-center justify-end pb-0 min-w-[60px] group transition-all duration-300 snap-center outline-none
-                                      `}
+                                      // items-start aligns the content to the top of the button container
+                                      className="relative flex-shrink-0 flex flex-col items-center justify-start min-w-[55px] group transition-all duration-300 snap-center outline-none h-full"
                                   >
-                                      {/* --- Text Update: text-slate-600 for visible unselected options --- */}
-                                      <span className={`
-                                          mb-auto mt-6 text-sm font-bold font-mono transition-all duration-300 select-none
+                                      {/* --- SCREW COMPONENT (Hanging from top) --- */}
+                                      <div className={`transition-transform duration-300 origin-top ${isSelected ? 'scale-105 z-10' : 'scale-100 opacity-80 hover:opacity-100'}`}>
+                                         <CleanScrew lengthMm={numericLen} isSelected={isSelected} />
+                                      </div>
+
+                                      {/* --- LABEL BOX (Matches the "Box below tip" style in images) --- */}
+                                      <div className={`
+                                          mt-2 text-[10px] font-bold font-mono transition-all duration-300
+                                          px-2 py-0.5 rounded border
                                           ${isSelected 
-                                              ? 'text-amber-500 scale-125 -translate-y-1' 
-                                              : 'text-slate-600 group-hover:text-slate-800' // Darker grey so it is clearly visible
+                                              ? 'bg-amber-100 text-amber-700 border-amber-300 shadow-sm translate-y-1 scale-110' 
+                                              : 'bg-transparent text-slate-400 border-transparent group-hover:text-slate-600'
                                           }
                                       `}>
-                                          {parseInt(len)}
-                                      </span>
-
-                                      {/* --- Tick Update: bg-slate-400 for visible ticks --- */}
+                                          {numericLen}
+                                      </div>
+                                      
+                                      {/* Dashed Guide Line (Technical Drawing Feel) */}
                                       <div className={`
-                                          w-1 rounded-t-sm transition-all duration-300
-                                          ${isSelected 
-                                              ? 'h-10 bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]' 
-                                              : 'h-5 bg-slate-400 group-hover:bg-slate-500 group-hover:h-6' // Darker and slightly taller default tick
-                                          }
+                                        absolute top-0 bottom-0 w-px border-l border-dashed transition-opacity duration-300 -z-10 left-1/2
+                                        ${isSelected ? 'border-amber-200 opacity-100' : 'border-slate-300 opacity-0 group-hover:opacity-20'}
                                       `}></div>
 
-                                      {isSelected && <div className="absolute bottom-0 w-full h-[3px] bg-amber-500 rounded-t-full"></div>}
                                   </button>
                               )
                           }) : (
-                             <div className="w-full flex items-center justify-center text-xs text-slate-400 italic">Select a Diameter first</div>
+                             <div className="w-full mt-24 text-center text-xs text-slate-400 italic">Select a Diameter first</div>
                           )}
                           <div className="min-w-[40px]"></div>
                       </div>
                       
-                      <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent pointer-events-none"></div>
-                      <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
+                      {/* Edges Fade for visual polish */}
+                      <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-slate-50 to-transparent pointer-events-none z-20"></div>
+                      <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-50 to-transparent pointer-events-none z-20"></div>
                   </div>
                 </div>
 
                 {/* 3. FINISH OPTIONS */}
                 <div className="space-y-4">
                     <span className={`text-slate-500 text-xs font-bold uppercase tracking-widest flex items-center gap-2 pl-1`} style={fontHeading}>
-                         <div className="w-1.5 h-1.5 bg-amber-500 rotate-45 rounded-sm"></div> Finish Options
+                          <div className="w-1.5 h-1.5 bg-amber-500 rotate-45 rounded-sm"></div> Finish Options
                     </span>
                     <div className="flex flex-wrap gap-2">
                         {availableFinishes.map((finish: any) => (

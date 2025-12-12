@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import CreativeLoader from '../components/CreativeLoader'; 
-import { Product } from '../types';
+
+import { Product } from '../types'; // Make sure this path is correct
 import {
   Search, ChevronDown, ChevronRight, Filter,
   ArrowRight, X, CornerDownRight,
@@ -119,9 +119,8 @@ const Products: React.FC = () => {
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
-        setTimeout(() => {
-            setLoading(false);
-        }, 2500); 
+        // ✅ FIX: Timeout hata diya, ab fast load hoga
+        setLoading(false);
       }
     };
     fetchData();
@@ -178,12 +177,14 @@ const Products: React.FC = () => {
         }
 
         if (foundLevel === 1) {
+           // Ensure your DB column logic matches (Name vs ID)
            categoryMatch = p.category?.toLowerCase() === mainCategoryName.toLowerCase();
         } else if (foundLevel === 2) {
            categoryMatch = p.sub_category === activeCategory;
         } else if (foundLevel === 3) {
            categoryMatch = p.child_category === activeCategory;
         } else {
+           // Fallback
            categoryMatch = p.category === activeCategory || p.sub_category === activeCategory;
         }
       }
@@ -193,18 +194,16 @@ const Products: React.FC = () => {
     });
   }, [products, activeCategory, searchTerm, categoryTree]);
 
+  // Pagination Slice
   const paginatedProducts = filteredProducts.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
-  if (loading) {
-    return <CreativeLoader />;
-  }
+  
 
   // --- MAIN RENDER ---
   return (
-    // FIX 1: Added pt-20 (or pt-24) to create space for your fixed navbar
     <div className="bg-gray-50 min-h-screen font-sans text-gray-800 pt-24">
       
       {/* HEADER */}
@@ -238,7 +237,6 @@ const Products: React.FC = () => {
           
           {/* ================= SIDEBAR ================= */}
           <aside className="w-full lg:w-[280px] flex-shrink-0">
-            {/* FIX 2: Increased sticky top from top-24 to top-28 or top-32 to account for the navbar */}
             <div className="sticky top-32 space-y-6">
               
               {/* Search */}
@@ -380,6 +378,8 @@ const Products: React.FC = () => {
                            <img
                              src={product.images[0]}
                              alt={product.name}
+                             // Added loading="lazy" for better performance
+                             loading="lazy" 
                              className="relative z-10 w-full h-full object-contain drop-shadow-lg transform transition-transform duration-700 ease-out group-hover:scale-110"
                            />
                          ) : (
@@ -421,11 +421,27 @@ const Products: React.FC = () => {
               </div>
             )}
             
-            {paginatedProducts.length > 0 && (
+            {/* ✅ FIX: Improved Pagination Logic */}
+            {filteredProducts.length > itemsPerPage && (
                <div className="mt-12 flex justify-center gap-2">
-                  <button disabled={currentPage === 1} onClick={() => setCurrentPage(c => c-1)} className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50"><ChevronDown className="rotate-90" size={20}/></button>
+                  <button 
+                    disabled={currentPage === 1} 
+                    onClick={() => setCurrentPage(c => c-1)} 
+                    className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronDown className="rotate-90" size={20}/>
+                  </button>
+                  
                   <span className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold">{currentPage}</span>
-                  <button disabled={paginatedProducts.length < itemsPerPage} onClick={() => setCurrentPage(c => c+1)} className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50"><ChevronDown className="-rotate-90" size={20}/></button>
+                  
+                  <button 
+                    // Yahan check kar rahe hain ki kya agla page exist karta hai
+                    disabled={currentPage * itemsPerPage >= filteredProducts.length} 
+                    onClick={() => setCurrentPage(c => c+1)} 
+                    className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronDown className="-rotate-90" size={20}/>
+                  </button>
                </div>
             )}
           </div>

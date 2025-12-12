@@ -1,28 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as ReactRouterDOM from 'react-router-dom';
 import { ArrowRight, Settings, ShieldCheck, Truck, Users, Sparkles, Play, ChevronRight, Box, Anchor } from 'lucide-react';
+// 👇 1. Supabase Import karein (Apna path check kar lein)
+import { supabase } from '../lib/supabase'; 
+
 const { Link } = ReactRouterDOM;
 
-// --- Mock Data for Preview (Replacing external constants) ---
-const CATEGORIES = [
-  { 
-    id: '1', 
-    name: 'Fasteners Segment', 
-    slug: 'fasteners', 
-    image: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80' 
-  },
-  { 
-    id: '2', 
-    name: 'Door & Furniture Fittings', 
-    slug: 'fittings', 
-    image: 'https://images.unsplash.com/photo-1530124566582-a618bc2615dc?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80' 
-  },
-  { 
-    id: '3', 
-    name: 'Automotive Components', 
-    slug: 'automotive', 
-    image: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80' 
-  }
+// --- Static Data (Images hata di kyunki wo ab Database se aayengi) ---
+const CATEGORIES_DATA = [
+  { id: '1', name: 'Fasteners Segment', slug: 'fasteners' },
+  { id: '2', name: 'Door & Furniture Fittings', slug: 'fittings' },
+  { id: '3', name: 'Automotive Components', slug: 'automotive' }
 ];
 
 const INDUSTRIES = [
@@ -34,9 +22,7 @@ const INDUSTRIES = [
   { name: 'Electronics' }
 ];
 
-// --- Helper Components ---
-
-// Animated Counter Hook
+// --- Helper Components (Same as before) ---
 const useCounter = (end: number, duration: number = 2000) => {
   const [count, setCount] = useState(0);
   const [hasStarted, setHasStarted] = useState(false);
@@ -44,61 +30,39 @@ const useCounter = (end: number, duration: number = 2000) => {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !hasStarted) {
-          setHasStarted(true);
-        }
-      },
+      ([entry]) => { if (entry.isIntersecting && !hasStarted) setHasStarted(true); },
       { threshold: 0.5 }
     );
-
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, [hasStarted]);
 
   useEffect(() => {
     if (!hasStarted) return;
-    
     let startTime: number;
     const step = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
       const progress = Math.min((timestamp - startTime) / duration, 1);
       setCount(Math.floor(progress * end));
-      
-      if (progress < 1) {
-        window.requestAnimationFrame(step);
-      }
+      if (progress < 1) window.requestAnimationFrame(step);
     };
-    
     window.requestAnimationFrame(step);
   }, [hasStarted, end, duration]);
 
   return { count, ref };
 };
 
-// Scroll Reveal Wrapper
 const RevealSection: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => {
   const ref = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('active');
-        }
-      },
+      ([entry]) => { if (entry.isIntersecting) entry.target.classList.add('active'); },
       { threshold: 0.1 }
     );
-
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
-
-  return (
-    <div ref={ref} className={`reveal ${className}`}>
-      {children}
-    </div>
-  );
+  return <div ref={ref} className={`reveal ${className}`}>{children}</div>;
 };
 
 // --- Main Page Component ---
@@ -106,12 +70,49 @@ const RevealSection: React.FC<{ children: React.ReactNode; className?: string }>
 const Home: React.FC = () => {
   const [offsetY, setOffsetY] = useState(0);
 
-  // Parallax Effect
+  // 👇 2. State banayein images store karne ke liye (Default values ke saath)
+  const [siteImages, setSiteImages] = useState({
+    hero_bg: '/allscrew.jpg', // Default agar DB fail ho
+    cat_fasteners: 'https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
+    cat_fittings: 'https://images.unsplash.com/photo-1530124566582-a618bc2615dc?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
+    cat_automotive: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
+    
+  });
+
+  // 👇 3. useEffect se Database call karein
   useEffect(() => {
+    const fetchContent = async () => {
+      const { data } = await supabase
+        .from('site_content')
+        .select('*')
+        .eq('id', 1)
+        .single();
+        
+      if (data) {
+        // Agar data mila, toh state update karein
+        setSiteImages({
+            hero_bg: data.hero_bg || siteImages.hero_bg,
+            cat_fasteners: data.cat_fasteners || siteImages.cat_fasteners,
+            cat_fittings: data.cat_fittings || siteImages.cat_fittings,
+            cat_automotive: data.cat_automotive || siteImages.cat_automotive
+        });
+      }
+    };
+    
+    fetchContent();
+    
+    // Scroll event setup
     const handleScroll = () => setOffsetY(window.pageYOffset);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, []); // Empty dependency array taaki sirf ek baar chale
+
+  // 👇 4. Categories ko Dynamic Banayein (State se image link karein)
+  const dynamicCategories = [
+    { ...CATEGORIES_DATA[0], image: siteImages.cat_fasteners },
+    { ...CATEGORIES_DATA[1], image: siteImages.cat_fittings },
+    { ...CATEGORIES_DATA[2], image: siteImages.cat_automotive }
+  ];
 
   // Stats Data
   const statDealers = useCounter(350);
@@ -121,14 +122,14 @@ const Home: React.FC = () => {
    return (
     <div className="bg-white overflow-x-hidden font-sans selection:bg-yellow-400 selection:text-black">
       
-      {/* 1. HERO SECTION: Industrial Cinematic */}
+      {/* 1. HERO SECTION */}
       <section className="relative h-screen min-h-[700px] flex items-center bg-[#0F1115] text-white overflow-hidden">
         {/* Parallax Video/Image Background */}
         <div className="absolute inset-0" style={{ transform: `translateY(${offsetY * 0.5}px)` }}>
-            <img src="/allscrew.jpg"className="w-full h-full object-cover grayscale" alt="Factory" />
+            {/* 👇 UPDATED: src ab state variable se aa raha hai */}
+            <img src={siteImages.hero_bg} className="w-full h-full object-cover grayscale" alt="Factory" />
         </div>
         
-        {/* Gradient Overlay for Text Readability */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent z-10" />
 
        <div className="relative z-20 max-w-[1440px] mx-auto px-6 lg:px-12 w-full pt-20">
@@ -159,7 +160,6 @@ const Home: React.FC = () => {
           </RevealSection>
         </div>
 
-        {/* Scroll Indicator */}
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 text-white/50 animate-bounce">
           <div className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center pt-2">
             <div className="w-1 h-1 bg-white rounded-full"></div>
@@ -167,7 +167,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. Floating Stats Section */}
+      {/* 2. Floating Stats Section - NO CHANGE */}
       <section className="relative -mt-20 z-30 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -192,9 +192,8 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. Corporate Introduction with Blob Animation */}
+      {/* 3. Corporate Introduction - NO CHANGE */}
       <section className="py-24 relative overflow-hidden">
-        {/* Animated Blobs */}
         <div className="absolute top-20 right-0 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
         <div className="absolute top-40 right-40 w-96 h-96 bg-yellow-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
 
@@ -239,7 +238,6 @@ const Home: React.FC = () => {
                         </div>
                     </div>
                   </div>
-                  {/* Floating Badge */}
                   <div className="absolute -bottom-6 -left-6 bg-white p-6 rounded-xl shadow-xl max-w-xs hidden md:block">
                       <p className="text-gray-500 text-sm mb-2">Quality Rating</p>
                       <div className="flex items-center gap-2">
@@ -255,7 +253,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. Products Portfolio (FIXED GRID LAYOUT) */}
+      {/* 4. Products Portfolio (UPDATED to use dynamicCategories) */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
            <div className="text-center mb-16">
@@ -268,17 +266,14 @@ const Home: React.FC = () => {
              </RevealSection>
            </div>
            
-           {/* FIXED: Removed 'col-span-2' logic. 
-              Now using a standard 3-column grid to ensure alignment.
-              We take the first 2 categories and add the CTA card as the 3rd item.
-           */}
            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
              
-             {/* Map First 2 Categories */}
-             {CATEGORIES.slice(0, 2).map((cat) => (
+             {/* 👇 UPDATED: Use dynamicCategories.slice(0, 2) */}
+             {dynamicCategories.slice(0, 2).map((cat) => (
                <RevealSection key={cat.id} className="group relative h-[400px] rounded-3xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500">
                  <Link to={`/products?category=${cat.slug}`} className="block w-full h-full">
                    <div className="absolute inset-0 bg-gray-900/10 group-hover:bg-gray-900/0 transition-colors z-10" />
+                   {/* Image now comes from database/state */}
                    <img 
                      src={cat.image} 
                      alt={cat.name} 
@@ -297,7 +292,7 @@ const Home: React.FC = () => {
                </RevealSection>
              ))}
 
-             {/* Dynamic CTA Card - Now fits perfectly as the 3rd item in the row */}
+             {/* Dynamic CTA Card - Same as before */}
              <RevealSection className="h-[400px] bg-brand-dark rounded-3xl p-8 flex flex-col justify-center items-center text-center text-white relative overflow-hidden group shadow-md hover:shadow-2xl transition-all duration-500">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
                 <div className="relative z-10">
@@ -315,7 +310,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 5. Infinite Industries Marquee */}
+      {/* 5. Infinite Industries Marquee - NO CHANGE */}
       <section className="py-16 bg-white border-y border-gray-100 overflow-hidden">
         <div className="text-center mb-10">
            <h3 className="text-lg font-bold text-gray-400 uppercase tracking-widest">Trusted By Industries Worldwide</h3>
@@ -326,7 +321,7 @@ const Home: React.FC = () => {
             {[...INDUSTRIES, ...INDUSTRIES].map((ind, idx) => (
                <div key={idx} className="flex items-center gap-3 opacity-50 hover:opacity-100 transition-opacity cursor-default">
                   <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-600">
-                     <Settings size={20} /> {/* Simplified Icon for Marquee */}
+                      <Settings size={20} /> 
                   </div>
                   <span className="text-xl font-bold text-gray-800">{ind.name}</span>
                </div>
@@ -338,7 +333,7 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 6. Why Choose Us (Grid) */}
+      {/* 6. Why Choose Us (Grid) - NO CHANGE */}
       <section className="py-24 bg-brand-dark text-white relative">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -358,7 +353,7 @@ const Home: React.FC = () => {
          </div>
       </section>
 
-      {/* 7. CTA Section */}
+      {/* 7. CTA Section - NO CHANGE */}
       <section className="py-24 bg-brand-yellow relative overflow-hidden">
          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
          <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
